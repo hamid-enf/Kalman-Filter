@@ -127,6 +127,17 @@ docs/                  full documentation (see below)
 | [Benchmarks](docs/benchmarks.md) | Methodology and measured results |
 | [MISRA compliance](docs/misra_compliance.md) | Rule-by-rule compliance matrix |
 
+## Language ports
+
+The same algorithms (identical formulas and numerical strategy) are also
+available for offline prototyping and validation:
+
+| Port | Directory | Notes |
+|------|-----------|-------|
+| **Python** (numpy) | [`python/`](python/) | fully tested here |
+| **MATLAB** | [`matlab/`](matlab/) | reviewed, run `tests/test_kalman.m` to verify |
+| **C# (.NET)** | [`csharp/`](csharp/) | reviewed, run `dotnet run --project Tests` to verify |
+
 ## License
 
 MIT — see [LICENSE](LICENSE).
