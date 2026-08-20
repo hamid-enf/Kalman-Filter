@@ -23,7 +23,10 @@ It provides three estimators, each independently switchable at compile time:
   optional NaN/Inf diagnostics.
 - **Simple outside, sophisticated inside** — a beginner needs only
   `init → predict → update → get_state`; experts get full matrix access.
-- **MISRA-C:2012-oriented**, C11, explicit integer types, `const`-correct.
+- **MISRA-C:2012** — verified with cppcheck + the official `misra.py` addon:
+  every Mandatory/Required rule cppcheck checks is clean; advisory findings are
+  documented deviations (see `docs/misra_compliance.md`). C11, explicit integer
+  types, `const`-correct.
 - **Tested** — a host-runnable unit suite (KF/EKF/UKF/matrix, numerical
   edge cases) plus examples and a benchmark framework.
 
@@ -112,6 +115,7 @@ docs/                  full documentation (see below)
 | [Examples](docs/examples.md) | Walkthrough of examples 01–10 |
 | [Testing](docs/testing.md) | What the test suite covers |
 | [Benchmarks](docs/benchmarks.md) | Methodology and measured results |
+| [MISRA compliance](docs/misra_compliance.md) | Rule-by-rule compliance matrix |
 
 ## License
 

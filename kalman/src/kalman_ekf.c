@@ -72,7 +72,8 @@ kf_status_t kf_ekf_init(kf_ekf_t *ekf, uint16_t n, uint16_t m)
 kf_status_t kf_ekf_reset(kf_ekf_t *ekf)
 {
     kf_matrix_t M;
-    uint16_t n, m;
+    uint16_t n;
+    uint16_t m;
 
     KF_NULL_CHECK(ekf);
 
@@ -83,11 +84,16 @@ kf_status_t kf_ekf_reset(kf_ekf_t *ekf)
     m = ekf->m;
 
     kf_vec_zero(ekf->x, n);
-    kf_view(&M, ekf->P, n, n);  kf_matrix_identity(&M);
-    kf_view(&M, ekf->Q, n, n);  kf_matrix_zero(&M);
-    kf_view(&M, ekf->F, n, n);  kf_matrix_identity(&M);
-    kf_view(&M, ekf->R, m, m);  kf_matrix_zero(&M);
-    kf_view(&M, ekf->H, m, n);  kf_matrix_zero(&M);
+    kf_view(&M, ekf->P, n, n);
+    (void)kf_matrix_identity(&M);
+    kf_view(&M, ekf->Q, n, n);
+    (void)kf_matrix_zero(&M);
+    kf_view(&M, ekf->F, n, n);
+    (void)kf_matrix_identity(&M);
+    kf_view(&M, ekf->R, m, m);
+    (void)kf_matrix_zero(&M);
+    kf_view(&M, ekf->H, m, n);
+    (void)kf_matrix_zero(&M);
 
 #if KF_ENABLE_ADVANCED_API
     {
@@ -185,7 +191,7 @@ kf_status_t kf_ekf_set_covariance_diagonal(kf_ekf_t *ekf, const kf_real_t *diag)
         return KF_ERROR_NOT_INITIALIZED;
     }
     kf_view(&M, ekf->P, ekf->n, ekf->n);
-    kf_matrix_zero(&M);
+    (void)kf_matrix_zero(&M);
     for (i = 0u; i < ekf->n; i++) {
         kf_matrix_set(&M, i, i, diag[i]);
     }
@@ -201,8 +207,8 @@ kf_status_t kf_ekf_set_covariance_scalar(kf_ekf_t *ekf, kf_real_t p)
         return KF_ERROR_NOT_INITIALIZED;
     }
     kf_view(&M, ekf->P, ekf->n, ekf->n);
-    kf_matrix_identity(&M);
-    kf_matrix_scale(&M, p);
+    (void)kf_matrix_identity(&M);
+    (void)kf_matrix_scale(&M, p);
     return KF_OK;
 }
 
@@ -238,7 +244,7 @@ kf_status_t kf_ekf_set_process_noise_diagonal(kf_ekf_t *ekf, const kf_real_t *di
         return KF_ERROR_NOT_INITIALIZED;
     }
     kf_view(&M, ekf->Q, ekf->n, ekf->n);
-    kf_matrix_zero(&M);
+    (void)kf_matrix_zero(&M);
     for (i = 0u; i < ekf->n; i++) {
         kf_matrix_set(&M, i, i, diag[i]);
     }
@@ -254,8 +260,8 @@ kf_status_t kf_ekf_set_process_noise_scalar(kf_ekf_t *ekf, kf_real_t q)
         return KF_ERROR_NOT_INITIALIZED;
     }
     kf_view(&M, ekf->Q, ekf->n, ekf->n);
-    kf_matrix_identity(&M);
-    kf_matrix_scale(&M, q);
+    (void)kf_matrix_identity(&M);
+    (void)kf_matrix_scale(&M, q);
     return KF_OK;
 }
 
@@ -286,7 +292,7 @@ kf_status_t kf_ekf_set_measurement_noise_diagonal(kf_ekf_t *ekf, const kf_real_t
         return KF_ERROR_NOT_INITIALIZED;
     }
     kf_view(&M, ekf->R, ekf->m, ekf->m);
-    kf_matrix_zero(&M);
+    (void)kf_matrix_zero(&M);
     for (i = 0u; i < ekf->m; i++) {
         kf_matrix_set(&M, i, i, diag[i]);
     }
@@ -302,8 +308,8 @@ kf_status_t kf_ekf_set_measurement_noise_scalar(kf_ekf_t *ekf, kf_real_t r)
         return KF_ERROR_NOT_INITIALIZED;
     }
     kf_view(&M, ekf->R, ekf->m, ekf->m);
-    kf_matrix_identity(&M);
-    kf_matrix_scale(&M, r);
+    (void)kf_matrix_identity(&M);
+    (void)kf_matrix_scale(&M, r);
     return KF_OK;
 }
 
@@ -339,10 +345,10 @@ kf_status_t kf_ekf_predict(kf_ekf_t *ekf, const kf_real_t *u, kf_real_t dt)
     kf_view(&Pm, ekf->P, n, n);
     kf_view(&Qm, ekf->Q, n, n);
     kf_view(&tmp, &s[OFF_NN1], n, n);
-    kf_matrix_mul(&tmp, &Fm, &Pm);
-    kf_matrix_mul_transpose_b(&Pm, &tmp, &Fm);
-    kf_matrix_add(&Pm, &Pm, &Qm);
-    kf_matrix_symmetrize(&Pm);
+    (void)kf_matrix_mul(&tmp, &Fm, &Pm);
+    (void)kf_matrix_mul_transpose_b(&Pm, &tmp, &Fm);
+    (void)kf_matrix_add(&Pm, &Pm, &Qm);
+    (void)kf_matrix_symmetrize(&Pm);
 
     /* Commit the propagated state. */
     kf_vec_copy(ekf->x, &s[OFF_N1], n);
@@ -359,7 +365,10 @@ kf_status_t kf_ekf_update(kf_ekf_t *ekf, const kf_real_t *z)
     kf_matrix_t Hm, Pm, Rm, Bm, Sm, Km, Tm, T2, KR, RHS;
     kf_real_t *s;
     kf_status_t st;
-    uint16_t n, m, r, c;
+    uint16_t n;
+    uint16_t m;
+    uint16_t r;
+    uint16_t c;
 
     KF_NULL_CHECK(ekf);
     KF_NULL_CHECK(z);
@@ -389,24 +398,24 @@ kf_status_t kf_ekf_update(kf_ekf_t *ekf, const kf_real_t *z)
     kf_view(&Rm, ekf->R, m, m);
 
     kf_view(&Bm, &s[OFF_NM1], n, m);
-    kf_matrix_mul_transpose_b(&Bm, &Pm, &Hm);   /* B = P H^T        */
+    (void)kf_matrix_mul_transpose_b(&Bm, &Pm, &Hm);   /* B = P H^T        */
 
     kf_view(&Sm, &s[OFF_MM], m, m);
-    kf_matrix_mul(&Sm, &Hm, &Bm);               /* S = H B          */
-    kf_matrix_add(&Sm, &Sm, &Rm);               /* S += R           */
+    (void)kf_matrix_mul(&Sm, &Hm, &Bm);               /* S = H B          */
+    (void)kf_matrix_add(&Sm, &Sm, &Rm);               /* S += R           */
 
     st = kf_matrix_cholesky(&Sm);
     if (st != KF_OK) {
         return st;
     }
     kf_view(&RHS, &s[OFF_MN], m, n);
-    kf_matrix_transpose(&RHS, &Bm);
+    (void)kf_matrix_transpose(&RHS, &Bm);
     st = kf_matrix_cholesky_solve(&Sm, &RHS);   /* RHS = K^T        */
     if (st != KF_OK) {
         return st;
     }
     kf_view(&Km, &s[OFF_NM1], n, m);
-    kf_matrix_transpose(&Km, &RHS);             /* K = (K^T)^T      */
+    (void)kf_matrix_transpose(&Km, &RHS);             /* K = (K^T)^T      */
 
 #if KF_ENABLE_ADVANCED_API
     {
@@ -418,12 +427,12 @@ kf_status_t kf_ekf_update(kf_ekf_t *ekf, const kf_real_t *z)
 #endif
 
     /* x = x + K y */
-    kf_mat_vec_mul(&s[OFF_N2], &Km, &s[OFF_M1]);
+    (void)kf_mat_vec_mul(&s[OFF_N2], &Km, &s[OFF_M1]);
     kf_vec_add(ekf->x, ekf->x, &s[OFF_N2], n);
 
     /* Covariance update */
     kf_view(&Tm, &s[OFF_NN1], n, n);
-    kf_matrix_mul(&Tm, &Km, &Hm);
+    (void)kf_matrix_mul(&Tm, &Km, &Hm);
     for (r = 0u; r < n; r++) {
         for (c = 0u; c < n; c++) {
             kf_real_t ident = (r == c) ? (kf_real_t)1 : (kf_real_t)0;
@@ -433,18 +442,18 @@ kf_status_t kf_ekf_update(kf_ekf_t *ekf, const kf_real_t *z)
 
 #if KF_USE_JOSEPH_FORM
     kf_view(&T2, &s[OFF_NN2], n, n);
-    kf_matrix_mul(&T2, &Tm, &Pm);
-    kf_matrix_mul_transpose_b(&Pm, &T2, &Tm);
+    (void)kf_matrix_mul(&T2, &Tm, &Pm);
+    (void)kf_matrix_mul_transpose_b(&Pm, &T2, &Tm);
     kf_view(&KR, &s[OFF_NM2], n, m);
-    kf_matrix_mul(&KR, &Km, &Rm);
-    kf_matrix_mul_transpose_b(&T2, &KR, &Km);
-    kf_matrix_add(&Pm, &Pm, &T2);
+    (void)kf_matrix_mul(&KR, &Km, &Rm);
+    (void)kf_matrix_mul_transpose_b(&T2, &KR, &Km);
+    (void)kf_matrix_add(&Pm, &Pm, &T2);
 #else
     kf_view(&T2, &s[OFF_NN2], n, n);
-    kf_matrix_mul(&T2, &Tm, &Pm);
-    kf_matrix_copy(&Pm, &T2);
+    (void)kf_matrix_mul(&T2, &Tm, &Pm);
+    (void)kf_matrix_copy(&Pm, &T2);
 #endif
-    kf_matrix_symmetrize(&Pm);
+    (void)kf_matrix_symmetrize(&Pm);
 
     return KF_OK;
 }
@@ -485,7 +494,6 @@ kf_status_t kf_ekf_get_gain(const kf_ekf_t *ekf, kf_real_t *K_out)
 #if KF_ENABLE_DIAGNOSTICS
 kf_status_t kf_ekf_check(const kf_ekf_t *ekf)
 {
-    kf_matrix_t M;
     uint16_t i;
 
     KF_NULL_CHECK(ekf);
@@ -493,16 +501,15 @@ kf_status_t kf_ekf_check(const kf_ekf_t *ekf)
     if (ekf->initialized == 0u) {
         return KF_ERROR_NOT_INITIALIZED;
     }
-    for (i = 0u; i < ekf->n; i++) {
-        if (!kf_isfinite(ekf->x[i])) {
+    if (!kf_vec_is_finite(ekf->x, ekf->n)) {
+        return KF_ERROR_NON_FINITE;
+    }
+    for (i = 0u; i < (uint16_t)(ekf->n * ekf->n); i++) {
+        if (!kf_isfinite(ekf->P[i])) {
             return KF_ERROR_NON_FINITE;
         }
     }
-    kf_view(&M, (kf_real_t *)ekf->P, ekf->n, ekf->n);
-    if (!kf_matrix_is_finite(&M)) {
-        return KF_ERROR_NON_FINITE;
-    }
-    if (!kf_matrix_is_symmetric(&M)) {
+    if (!kf_mat_is_symmetric(ekf->P, ekf->n)) {
         return KF_ERROR_NUMERICAL;
     }
     return KF_OK;

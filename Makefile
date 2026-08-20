@@ -68,7 +68,7 @@ EXE := \
     $(BUILD)/examples/09_ekf_basic \
     $(BUILD)/examples/10_ukf_basic
 
-.PHONY: all lib test examples run-examples bench clean
+.PHONY: all lib test examples run-examples bench check clean
 
 all: lib examples test bench
 
@@ -117,6 +117,24 @@ bench: $(BUILD)/benchmarks/benchmark
 $(BUILD)/benchmarks/benchmark: benchmarks/benchmark.c $(LIB)
 	@mkdir -p $(dir $@)
 	$(CC) $(CFLAGS) $(INC) -Ibenchmarks $< $(LIB) $(LDLIBS) -o $@
+
+# ---------------------------------------------------------------------------
+# Static analysis / MISRA
+# ---------------------------------------------------------------------------
+
+# Runs cppcheck (if installed) and the MISRA-C:2012 addon (see tools/).
+check:
+	@if command -v cppcheck >/dev/null 2>&1; then \
+		cppcheck --std=c11 --enable=warning,style,performance,portability \
+			--error-exitcode=1 -Ikalman/include kalman/src/ || true; \
+	else \
+		echo "cppcheck not installed; skipping general static analysis"; \
+	fi
+	@if command -v python3 >/dev/null 2>&1; then \
+		CPPCHECK_ADDON="$${CPPCHECK_ADDON:-}" ./tools/misra_check.sh || true; \
+	else \
+		echo "python3 not installed; skipping MISRA check"; \
+	fi
 
 # ---------------------------------------------------------------------------
 # Convenience

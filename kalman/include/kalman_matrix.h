@@ -183,6 +183,16 @@ int kf_matrix_is_finite(const kf_matrix_t *m);
 /** @brief Returns 1 if m is square and symmetric (within tolerance), else 0. */
 int kf_matrix_is_symmetric(const kf_matrix_t *m);
 
+/** @brief Returns 1 if all n elements of v are finite, 0 otherwise. */
+int kf_vec_is_finite(const kf_real_t *v, uint16_t n);
+
+/**
+ * @brief Returns 1 if the n x n row-major matrix a is symmetric (within
+ * tolerance), 0 otherwise. Takes a const pointer so it can be used on read-only
+ * covariances without casting away const.
+ */
+int kf_mat_is_symmetric(const kf_real_t *a, uint16_t n);
+
 #ifdef __cplusplus
 }
 #endif

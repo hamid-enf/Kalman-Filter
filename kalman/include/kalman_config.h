@@ -65,9 +65,6 @@ typedef float  kf_real_t;
 #define KF_MAX_MEASUREMENT_DIM  4u   /**< Maximum measurement dimension m    */
 #endif
 
-#define KF_MAX_MATRIX_DIM ((KF_MAX_STATE_DIM) > (KF_MAX_MEASUREMENT_DIM) ? \
-                           (KF_MAX_STATE_DIM) : (KF_MAX_MEASUREMENT_DIM))
-
 /* ============================================================================
  * 3. FILTER TYPE SWITCHES
  * ============================================================================
@@ -143,9 +140,6 @@ typedef float  kf_real_t;
 #if defined(__STDC_VERSION__) && (__STDC_VERSION__ < 201112L)
 #error "kalman: C11 or later is required"
 #endif
-
-/* Static assertion helper (C11 _Static_assert). */
-#define KF_STATIC_ASSERT(cond, msg) typedef char kf_static_assert_##msg[(cond) ? 1 : -1]
 
 #ifdef __cplusplus
 }

@@ -61,7 +61,8 @@ kf_status_t kf_matrix_zero(kf_matrix_t *m)
 
 kf_status_t kf_matrix_identity(kf_matrix_t *m)
 {
-    uint16_t r, c;
+    uint16_t r;
+    uint16_t c;
     KF_NULL_CHECK(m);
     KF_NULL_CHECK(m->data);
 
@@ -212,7 +213,9 @@ kf_status_t kf_matrix_mul(kf_matrix_t *out, const kf_matrix_t *a,
                           const kf_matrix_t *b)
 {
     uint16_t i;
-    uint16_t p, q, r;
+    uint16_t p;
+    uint16_t q;
+    uint16_t r;
 
     KF_NULL_CHECK(out);
     KF_NULL_CHECK(a);
@@ -249,7 +252,9 @@ kf_status_t kf_matrix_mul_transpose_b(kf_matrix_t *out, const kf_matrix_t *a,
                                       const kf_matrix_t *b)
 {
     uint16_t i;
-    uint16_t p, q, r;
+    uint16_t p;
+    uint16_t q;
+    uint16_t r;
 
     KF_NULL_CHECK(out);
     KF_NULL_CHECK(a);
@@ -286,7 +291,9 @@ kf_status_t kf_matrix_mul_transpose_a(kf_matrix_t *out, const kf_matrix_t *a,
                                       const kf_matrix_t *b)
 {
     uint16_t i;
-    uint16_t p, q, r;
+    uint16_t p;
+    uint16_t q;
+    uint16_t r;
 
     KF_NULL_CHECK(out);
     KF_NULL_CHECK(a);
@@ -422,13 +429,14 @@ kf_status_t kf_matrix_cholesky_solve(const kf_matrix_t *L, kf_matrix_t *B)
         }
 
         /* Backward substitution: L^T x = y  (in place). */
-        for (i = L->rows; i-- > 0u; ) {
-            kf_real_t sum = kf_matrix_get(B, i, col);
+        for (i = L->rows; i > 0u; i--) {
+            uint16_t r = (uint16_t)(i - 1u);
+            kf_real_t sum = kf_matrix_get(B, r, col);
             uint16_t k;
-            for (k = i + 1u; k < L->rows; k++) {
-                sum -= kf_matrix_get(L, k, i) * kf_matrix_get(B, k, col);
+            for (k = r + 1u; k < L->rows; k++) {
+                sum -= kf_matrix_get(L, k, r) * kf_matrix_get(B, k, col);
             }
-            kf_matrix_set(B, i, col, sum / kf_matrix_get(L, i, i));
+            kf_matrix_set(B, r, col, sum / kf_matrix_get(L, r, r));
         }
     }
     return KF_OK;
@@ -563,6 +571,38 @@ int kf_matrix_is_symmetric(const kf_matrix_t *m)
         uint16_t c;
         for (c = r + 1u; c < m->cols; c++) {
             kf_real_t diff = kf_matrix_get(m, r, c) - kf_matrix_get(m, c, r);
+            if (kf_fabs(diff) > (kf_real_t)1e-4) {
+                return 0;
+            }
+        }
+    }
+    return 1;
+}
+
+int kf_vec_is_finite(const kf_real_t *v, uint16_t n)
+{
+    uint16_t i;
+    if (v == NULL) {
+        return 0;
+    }
+    for (i = 0u; i < n; i++) {
+        if (!kf_isfinite(v[i])) {
+            return 0;
+        }
+    }
+    return 1;
+}
+
+int kf_mat_is_symmetric(const kf_real_t *a, uint16_t n)
+{
+    uint16_t r;
+    if (a == NULL) {
+        return 0;
+    }
+    for (r = 0u; r < n; r++) {
+        uint16_t c;
+        for (c = r + 1u; c < n; c++) {
+            kf_real_t diff = a[(size_t)r * n + c] - a[(size_t)c * n + r];
             if (kf_fabs(diff) > (kf_real_t)1e-4) {
                 return 0;
             }

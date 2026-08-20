@@ -56,11 +56,13 @@ prefer the cheaper `P = (I−KH)P` and have verified stability.
 C11 or later. `kalman_config.h` asserts this.
 
 ### Is it MISRA-C compliant?
-The code is written *with MISRA-C:2012 principles in mind* (explicit integer
-types, no dynamic allocation, no recursion, no hidden global state,
-`const`-correct, no magic numbers in the core, deterministic behaviour). It has
-not been run through a MISRA checker, so "compliance" is not certified — see
-the statement in the README.
+The code is written to MISRA-C:2012 and has been run through a static-analysis
+pass (cppcheck + the official `misra.py` addon). Every Mandatory/Required rule
+cppcheck can check is clean; the remaining findings are advisory and are
+documented as explicit deviations (early-return style, precedence parentheses)
+or false positives. See [MISRA compliance](misra_compliance.md) for the full
+matrix and the reproducible check (`tools/misra_check.sh`). Formal
+certification still requires a certified tool (LDRA, QAC, PC-lint, Parasoft).
 
 ### How do I report bugs or contribute?
 Open an issue or pull request on the repository. Contributions should keep the

@@ -40,9 +40,9 @@ extern "C" {
 
 /* Size of the internal scratch buffer (in kf_real_t) owned by each instance. */
 #define KF_KF_SCRATCH_FLOATS \
-    (2u * KF_MAX_STATE_DIM * KF_MAX_STATE_DIM \
-   + 3u * KF_MAX_STATE_DIM * KF_MAX_MEASUREMENT_DIM \
-   +       KF_MAX_MEASUREMENT_DIM * KF_MAX_MEASUREMENT_DIM \
+    ((2u * KF_MAX_STATE_DIM * KF_MAX_STATE_DIM) \
+   + (3u * KF_MAX_STATE_DIM * KF_MAX_MEASUREMENT_DIM) \
+   + (KF_MAX_MEASUREMENT_DIM * KF_MAX_MEASUREMENT_DIM) \
    + KF_MAX_STATE_DIM + KF_MAX_MEASUREMENT_DIM)
 
 #if KF_ENABLE_KF
