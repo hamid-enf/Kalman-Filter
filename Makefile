@@ -78,7 +78,7 @@ EXE := \
     $(BUILD)/examples/12_adaptive_r \
     $(BUILD)/examples/13_rts_smoother
 
-.PHONY: all lib test examples run-examples bench check sanitize clean
+.PHONY: all lib test examples run-examples h743 bench check sanitize clean
 
 all: lib examples test bench
 
@@ -116,6 +116,13 @@ examples: $(EXE)
 $(BUILD)/examples/%: examples/%/main.c $(LIB)
 	@mkdir -p $(dir $@)
 	$(CC) $(CFLAGS) $(INC) -Iexamples/common $< $(LIB) $(LDLIBS) -o $@
+
+# ---------------------------------------------------------------------------
+# STM32H743 examples (host build via HAL mock)
+# ---------------------------------------------------------------------------
+
+h743:
+	@$(MAKE) -C examples/stm32_h743 run
 
 # ---------------------------------------------------------------------------
 # Benchmark

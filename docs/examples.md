@@ -81,5 +81,12 @@ Filters a random walk forward (storing `x`,`P`,`x_pred`,`P_pred`,`F`), then
 sweeps backward with `kf_kf_smooth_step()`. The smoothed trajectory is visibly
 smoother and has lower variance than the forward filter.
 
-The STM32-specific skeletons live in `examples/stm32/` (see
-[STM32 integration](stm32_integration.md)).
+## STM32 examples
+
+- `examples/stm32/` — HAL integration skeletons for F4/G4/H7 (see
+  [STM32 integration](stm32_integration.md)).
+- `examples/stm32_h743/` — three **concrete, beginner-friendly examples for the
+  STM32H743IIT6** (simple temperature filter, position+velocity, sensor
+  fusion). They use simulated random data with clearly-labelled inputs and
+  outputs, and run on the host (`make h743`) or on the board via UART3. See its
+  [README](../examples/stm32_h743/README.md).
