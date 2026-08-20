@@ -1,5 +1,9 @@
 # Kalman-Filter
 
+[![CI](https://github.com/hamid-enf/Kalman-Filter/actions/workflows/ci.yml/badge.svg)](https://github.com/hamid-enf/Kalman-Filter/actions/workflows/ci.yml)
+[![License: MIT](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
+[![Language: C11](https://img.shields.io/badge/language-C11-555555.svg)](kalman/)
+
 A **dependency-free, allocation-free Kalman filtering library for STM32**
 microcontrollers — written in C11, with a tiny high-level API and a
 sophisticated, numerically robust core.
@@ -137,6 +141,10 @@ available for offline prototyping and validation:
 | **Python** (numpy) | [`python/`](python/) | fully tested here |
 | **MATLAB** | [`matlab/`](matlab/) | reviewed, run `tests/test_kalman.m` to verify |
 | **C# (.NET)** | [`csharp/`](csharp/) | reviewed, run `dotnet run --project Tests` to verify |
+
+A [cross-language calibration](calibration/README.md) scenario implements the
+same sensor-fusion filter in all four languages with an identical deterministic
+RNG, so their numerical outputs can be diffed directly.
 
 ## License
 

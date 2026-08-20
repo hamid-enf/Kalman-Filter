@@ -1,0 +1,77 @@
+# Copy this file to `.github/workflows/ci.yml` to enable continuous
+# integration. (It lives here because some environments' GitHub tokens lack
+# the `workflows` permission needed to push into `.github/workflows/`.)
+name: CI
+
+on:
+  push:
+    branches: [main, 'arena/**']
+  pull_request:
+
+jobs:
+  c:
+    name: C library (build, test, sanitizers, examples)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Build & test (default)
+        run: make CFLAGS="-std=c11 -O2 -Wall -Wextra -Werror" test
+
+      - name: Build & test (float64)
+        run: |
+          make clean
+          make CFLAGS="-std=c11 -O2 -Wall -Wextra -Werror -DKF_ENABLE_FLOAT64=1" test
+
+      - name: Build & test (minimal: KF only, no optional features)
+        run: |
+          make clean
+          make CFLAGS="-std=c11 -O2 -Wall -Wextra -Werror \
+              -DKF_ENABLE_EKF=0 -DKF_ENABLE_UKF=0 \
+              -DKF_ENABLE_DIAGNOSTICS=0 -DKF_ENABLE_VALIDATION=0 \
+              -DKF_ENABLE_ADVANCED_API=0 -DKF_ENABLE_GATING=0 \
+              -DKF_ENABLE_ADAPTIVE_R=0 -DKF_ENABLE_SMOOTHER=0" test
+
+      - name: Sanitizers (ASan + UBSan)
+        run: |
+          make clean
+          ./tools/sanitize.sh
+
+      - name: Host examples
+        run: make run-examples
+
+      - name: STM32H743 examples (host HAL mock)
+        run: make h743
+
+      - name: Cross-language calibration (C vs Python)
+        run: ./calibration/compare.sh
+
+  python:
+    name: Python port
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Install numpy
+        run: pip install numpy
+      - name: Run tests
+        run: cd python && python tests/test_kalman.py
+
+  misra:
+    name: MISRA-C:2012 (cppcheck addon)
+    runs-on: ubuntu-latest
+    continue-on-error: true   # advisory guidance, not a certified checker
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install cppcheck
+        run: sudo apt-get update && sudo apt-get install -y cppcheck python3
+      - name: Run MISRA check
+        run: |
+          ADDON="$(find /usr/share/cppcheck -name misra.py 2>/dev/null | head -1)"
+          if [ -z "$ADDON" ]; then
+            echo "misra.py addon not found in the cppcheck package; skipping."
+          else
+            CPPCHECK_ADDON="$ADDON" ./tools/misra_check.sh
+          fi
