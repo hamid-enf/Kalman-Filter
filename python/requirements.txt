@@ -1,0 +1,2 @@
+# numpy (only dependency of the Python port)
+numpy>=1.20

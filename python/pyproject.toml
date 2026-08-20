@@ -1,0 +1,14 @@
+[build-system]
+requires = ["setuptools>=61.0"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "kalman-filter"
+version = "1.0.0"
+description = "Kalman filtering (KF/EKF/UKF) — numpy port of the STM32 C library"
+readme = "README.md"
+requires-python = ">=3.8"
+dependencies = ["numpy>=1.20"]
+
+[tool.setuptools]
+packages = ["kalman"]

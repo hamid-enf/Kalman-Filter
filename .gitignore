@@ -1,0 +1,16 @@
+# Build artefacts
+build/
+*.o
+*.a
+*.elf
+*.hex
+*.bin
+*.map
+
+# Editor / OS
+*.swp
+.DS_Store
+
+# Static-analysis artefacts (cppcheck)
+*.dump
+*.ctu-info
