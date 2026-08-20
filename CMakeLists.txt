@@ -42,6 +42,8 @@ add_executable(kalman_tests
     tests/test_ukf.c
     tests/test_extensions.c
     tests/test_reference.c
+    tests/test_stress.c
+    tests/test_boundary.c
     tests/main.c
 )
 target_include_directories(kalman_tests PRIVATE tests)

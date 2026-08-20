@@ -319,9 +319,13 @@ kf_status_t kf_kf_update_gated(kf_kf_t *kf, const kf_real_t *z);
  * (r r^T + H P H^T) is an unbiased estimate of R and is positive
  * semi-definite by construction, so R stays well-conditioned.
  *
- * Call after an update. `gamma` in (0, 1) is the forgetting factor (closer to
- * 1 = slower adaptation); `r_min` is a floor applied to the diagonal to keep R
- * positive definite.
+ * Call after a successful (non-gated) update. `gamma` in (0, 1) is the
+ * forgetting factor (closer to 1 = slower adaptation); `r_min` is a floor
+ * applied to the diagonal to keep R positive definite.
+ *
+ * Note: if the most recent update was rejected by gating
+ * (kf_kf_update_gated returned KF_WARN_GATED), the stored residual is stale;
+ * do not call kf_kf_adapt_r() in that case.
  */
 kf_status_t kf_kf_adapt_r(kf_kf_t *kf, kf_real_t gamma, kf_real_t r_min);
 #endif /* KF_ENABLE_ADAPTIVE_R */

@@ -33,8 +33,12 @@ plus a set of practical extensions in the Kalman family:
   every Mandatory/Required rule cppcheck checks is clean; advisory findings are
   documented deviations (see `docs/misra_compliance.md`). C11, explicit integer
   types, `const`-correct.
-- **Tested** — a host-runnable unit suite (KF/EKF/UKF/matrix, numerical
-  edge cases) plus examples and a benchmark framework.
+- **Tested** — a host-runnable unit suite plus examples and a benchmark
+  framework. Coverage includes: exact comparison against double-precision
+  reference implementations, property-based stress tests (covariance stays
+  symmetric/positive-definite/finite), boundary tests at maximum dimensions,
+  the control-input path, and a matrix-engine fuzz; the suite also runs clean
+  under AddressSanitizer + UndefinedBehaviorSanitizer.
 
 ## Quick start (1-D signal smoothing)
 
@@ -71,6 +75,8 @@ make            # build library, examples, tests, benchmark
 make test       # run the unit test suite
 make run-examples
 make bench
+make sanitize   # run the suite under ASan + UBSan (memory safety / UB)
+make check      # cppcheck + MISRA-C:2012 addon (if available)
 ```
 
 For a **minimal** float-only linear-KF build:

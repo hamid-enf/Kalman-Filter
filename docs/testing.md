@@ -20,6 +20,8 @@ A CMake build registers the suite with CTest (`ctest`).
 | `tests/test_ukf.c` | UKF nonlinear models, KF equivalence, error handling |
 | `tests/test_extensions.c` | Gating/NIS, adaptive R, RTS smoother |
 | `tests/test_reference.c` | Exact comparison against naive double-precision reference implementations |
+| `tests/test_boundary.c` | Control-input path, maximum dimensions, UKF small-alpha |
+| `tests/test_stress.c` | Property-based: P symmetric/positive-definite/finite across random configs |
 | `tests/main.c` | Runner |
 
 ## What is tested
@@ -71,6 +73,26 @@ A CMake build registers the suite with CTest (`ctest`).
   double-precision implementation and must match to float precision.
 - The UKF's sigma-point machinery is verified to reproduce the covariance
   `A P A^T` exactly for a linear map.
+
+**Boundary / untested paths**
+- The control-input `u` term is verified to accumulate exactly (KF) and to be
+  forwarded to the EKF transition callback.
+- The filters are exercised at `n = KF_MAX_STATE_DIM`,
+  `m = KF_MAX_MEASUREMENT_DIM` to flush out any off-by-one in the internal
+  scratch/indexing (these run under AddressSanitizer).
+- The UKF is run with a small `alpha` (large negative `Wm[0]`).
+
+**Property-based stress**
+- Across 40 random KF and 30 random UKF configurations, after every step the
+  covariance `P` is checked to be symmetric, positive-definite (Cholesky
+  succeeds), and finite.
+
+## Dynamic analysis
+
+The suite is also run under AddressSanitizer + UndefinedBehaviorSanitizer
+(including `bounds` and `pointer-overflow`) at `-O1`, which detects buffer
+overruns, leaks, and undefined behaviour. See `tools/` and the CI entry points
+for how this is invoked.
 
 ## Coverage philosophy
 

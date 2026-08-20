@@ -44,6 +44,8 @@ TEST_SRC := \
     tests/test_ukf.c \
     tests/test_extensions.c \
     tests/test_reference.c \
+    tests/test_boundary.c \
+    tests/test_stress.c \
     tests/main.c
 
 EXAMPLES := \
@@ -76,7 +78,7 @@ EXE := \
     $(BUILD)/examples/12_adaptive_r \
     $(BUILD)/examples/13_rts_smoother
 
-.PHONY: all lib test examples run-examples bench check clean
+.PHONY: all lib test examples run-examples bench check sanitize clean
 
 all: lib examples test bench
 
@@ -143,6 +145,14 @@ check:
 	else \
 		echo "python3 not installed; skipping MISRA check"; \
 	fi
+
+# ---------------------------------------------------------------------------
+# Dynamic analysis
+# ---------------------------------------------------------------------------
+
+# Runs the suite under ASan + UBSan (memory safety / undefined behaviour).
+sanitize:
+	@./tools/sanitize.sh
 
 # ---------------------------------------------------------------------------
 # Convenience
