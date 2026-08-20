@@ -41,9 +41,8 @@ for f in $srcs; do
     rm -f "${f}.dump"
 done
 
-echo "=== MISRA-C:2012 violations by rule (cppcheck, guidance only) ==="
-cat "$tmpdir"/*.misra | grep -oE 'misra-c2012-[0-9.]+' | sort | uniq -c | sort -rn
-
-echo
-echo "=== Detail ==="
-cat "$tmpdir"/*.misra | grep -E 'misra-c2012-' | grep -vE '^\s'
+echo "=== Per-file summary ==="
+for f in "$tmpdir"/*.misra; do
+    echo "--- $(basename "$f" .misra) ---"
+    grep -A10 'MISRA rules violated' "$f" | grep -E 'misra-c2012-'
+done

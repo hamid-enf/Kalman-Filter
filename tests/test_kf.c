@@ -337,6 +337,68 @@ static void test_input_validation(void)
 #endif
 }
 
+static void test_convenience_constructors(void)
+{
+    kf_kf_t kf;
+    kf_real_t z;
+    int i;
+
+    t_begin("KF: convenience constructors");
+
+    /* 1-D convenience. */
+    CHECK(kf_kf_init_1d(&kf, 1e-4f, 1.0f) == KF_OK);
+    for (i = 0; i < 200; i++) {
+        kf_kf_predict(&kf, NULL, 1.0f);
+        z = 4.0f + noise_unit();
+        kf_kf_update(&kf, &z);
+    }
+    CHECK_NEAR(kf_kf_get_state(&kf)[0], 4.0, 0.3);
+
+    /* Constant-velocity convenience: infer velocity from position only. */
+    CHECK(kf_kf_init_constant_velocity(&kf, 1.0f, 0.05f, 1.0f, 10.0f, 10.0f) == KF_OK);
+    {
+        kf_real_t pos = 0.0f;
+        for (i = 0; i < 400; i++) {
+            pos += 2.0f;                      /* true velocity = 2 */
+            kf_kf_predict(&kf, NULL, 1.0f);
+            z = pos + 0.5f * noise_unit();
+            kf_kf_update(&kf, &z);
+        }
+        CHECK_NEAR(kf_kf_get_state(&kf)[1], 2.0, 0.2);
+        CHECK_NEAR(kf_kf_get_state(&kf)[0], pos, 5.0);
+    }
+
+    /* Constant-acceleration convenience. */
+    CHECK(kf_kf_init_constant_acceleration(&kf, 1.0f, 0.01f, 1.0f, 10.0f) == KF_OK);
+    {
+        kf_real_t pos = 0.0f;
+        kf_real_t vel = 0.0f;
+        for (i = 0; i < 400; i++) {
+            vel += 1.0f;                      /* true acceleration = 1 */
+            pos += vel;
+            kf_kf_predict(&kf, NULL, 1.0f);
+            z = pos + 0.5f * noise_unit();
+            kf_kf_update(&kf, &z);
+        }
+        CHECK_NEAR(kf_kf_get_state(&kf)[2], 1.0, 0.15);
+    }
+
+    /* N-D constant convenience (2 states measured directly). */
+    CHECK(kf_kf_init_constant(&kf, 2u, 1e-3f, 1.0f, 1.0f) == KF_OK);
+    {
+        kf_real_t z2[2];
+        for (i = 0; i < 200; i++) {
+            kf_kf_predict(&kf, NULL, 1.0f);
+            z2[0] = 5.0f + noise_unit();
+            z2[1] = -3.0f + noise_unit();
+            kf_kf_update(&kf, z2);
+        }
+        CHECK_NEAR(kf_kf_get_state(&kf)[0], 5.0, 0.2);
+        CHECK_NEAR(kf_kf_get_state(&kf)[1], -3.0, 0.2);
+    }
+    t_end();
+}
+
 void test_kf(void)
 {
     test_1d_convergence();
@@ -350,4 +412,5 @@ void test_kf(void)
     test_reset();
     test_singular_measurement();
     test_input_validation();
+    test_convenience_constructors();
 }

@@ -39,6 +39,9 @@ allows. The per-instance RAM is documented in [Performance](performance.md).
 | `KF_ENABLE_VALIDATION` | 1 | Reject non-finite (NaN/Inf) inputs in the setters |
 | `KF_ENABLE_RUNTIME_CHECKS` | 1 | NULL-pointer guards on every call |
 | `KF_ENABLE_ADVANCED_API` | 1 | `kf_*_get_gain`, `get_innovation`, matrix access |
+| `KF_ENABLE_GATING` | 1 | Innovation gating / NIS outlier rejection (linear KF) |
+| `KF_ENABLE_ADAPTIVE_R` | 1 | Online measurement-noise (R) adaptation (linear KF) |
+| `KF_ENABLE_SMOOTHER` | 1 | Rauch-Tung-Striebel fixed-interval smoother (linear KF) |
 
 > Disable `KF_ENABLE_RUNTIME_CHECKS` only after you are confident all callers
 > pass valid pointers — passing `NULL` with the checks off is undefined

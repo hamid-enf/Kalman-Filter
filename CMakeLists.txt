@@ -40,6 +40,7 @@ add_executable(kalman_tests
     tests/test_kf.c
     tests/test_ekf.c
     tests/test_ukf.c
+    tests/test_extensions.c
     tests/main.c
 )
 target_include_directories(kalman_tests PRIVATE tests)
@@ -61,6 +62,9 @@ set(KALMAN_EXAMPLES
     08_variable_dt
     09_ekf_basic
     10_ukf_basic
+    11_outlier_gating
+    12_adaptive_r
+    13_rts_smoother
 )
 
 foreach(ex IN LISTS KALMAN_EXAMPLES)

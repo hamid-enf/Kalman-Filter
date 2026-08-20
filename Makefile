@@ -42,6 +42,7 @@ TEST_SRC := \
     tests/test_kf.c \
     tests/test_ekf.c \
     tests/test_ukf.c \
+    tests/test_extensions.c \
     tests/main.c
 
 EXAMPLES := \
@@ -54,7 +55,10 @@ EXAMPLES := \
     examples/07_predict_update_rates/main.c \
     examples/08_variable_dt/main.c \
     examples/09_ekf_basic/main.c \
-    examples/10_ukf_basic/main.c
+    examples/10_ukf_basic/main.c \
+    examples/11_outlier_gating/main.c \
+    examples/12_adaptive_r/main.c \
+    examples/13_rts_smoother/main.c
 
 EXE := \
     $(BUILD)/examples/01_basic_1d \
@@ -66,7 +70,10 @@ EXE := \
     $(BUILD)/examples/07_predict_update_rates \
     $(BUILD)/examples/08_variable_dt \
     $(BUILD)/examples/09_ekf_basic \
-    $(BUILD)/examples/10_ukf_basic
+    $(BUILD)/examples/10_ukf_basic \
+    $(BUILD)/examples/11_outlier_gating \
+    $(BUILD)/examples/12_adaptive_r \
+    $(BUILD)/examples/13_rts_smoother
 
 .PHONY: all lib test examples run-examples bench check clean
 

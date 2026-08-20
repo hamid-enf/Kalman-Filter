@@ -3,13 +3,12 @@
  *
  * State       : x = the (unknown) true signal value        (n = 1)
  * Measurement : z = x + noise                              (m = 1)
- * Model       : x(k+1) = x(k)   (constant signal), F = [1], H = [1]
+ * Model       : x(k+1) = x(k)   (constant signal)
  * Q           : 1e-3  (small process noise; lets the filter follow drift)
  * R           : 1.0   (measurement noise variance)
- * P0          : 1.0   (initial uncertainty)
  *
- * Predict : x = x, P = P + Q
- * Update  : y = z - x; K = P/(P+R); x += K y; P = (1-K) P
+ * The one-line constructor kf_kf_init_1d() configures the whole filter. No
+ * matrix is built by hand.
  *
  * Expected: the estimate converges to the true value (5.0) and stays close
  * even though each individual measurement is noisy (sigma = 1.0).
@@ -22,24 +21,13 @@
 int main(void)
 {
     kf_kf_t kf;
-    kf_real_t F[1] = {1.0f};
-    kf_real_t H[1] = {1.0f};
-    kf_real_t x0[1] = {0.0f};
     kf_real_t truth = 5.0f;
     kf_real_t z;
     uint32_t rng = 1u;
     int i;
 
-    /* Initialise: 1 state, 1 measurement. */
-    kf_kf_init(&kf, 1, 1);
-
-    /* Configure the model and noise. */
-    kf_kf_set_transition_matrix(&kf, F);
-    kf_kf_set_measurement_matrix(&kf, H);
-    kf_kf_set_process_noise_scalar(&kf, 1e-3f);
-    kf_kf_set_measurement_noise_scalar(&kf, 1.0f);
-    kf_kf_set_covariance_scalar(&kf, 1.0f);
-    kf_kf_set_state(&kf, x0);
+    /* One call: 1 state, 1 measurement, process noise q, sensor noise r. */
+    kf_kf_init_1d(&kf, /*q=*/1e-3f, /*r=*/1.0f);
 
     printf("step   measurement   estimate\n");
     for (i = 0; i < 40; i++) {

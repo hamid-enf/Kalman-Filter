@@ -9,6 +9,7 @@ const char *kf_status_str(kf_status_t status)
 {
     switch (status) {
     case KF_OK:                        return "OK";
+    case KF_WARN_GATED:                return "measurement gated (outlier)";
     case KF_ERROR_NULL_POINTER:        return "null pointer";
     case KF_ERROR_INVALID_DIMENSION:   return "invalid dimension";
     case KF_ERROR_INVALID_PARAMETER:   return "invalid parameter";

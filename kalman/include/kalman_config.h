@@ -110,6 +110,21 @@ typedef float  kf_real_t;
 #define KF_ENABLE_ADVANCED_API  1     /**< Low-level matrix/model access     */
 #endif
 
+#ifndef KF_ENABLE_GATING
+#define KF_ENABLE_GATING        1     /**< Innovation gating / NIS (outlier
+                                           rejection) for the linear KF      */
+#endif
+
+#ifndef KF_ENABLE_ADAPTIVE_R
+#define KF_ENABLE_ADAPTIVE_R    1     /**< Online measurement-noise (R)
+                                           adaptation for the linear KF      */
+#endif
+
+#ifndef KF_ENABLE_SMOOTHER
+#define KF_ENABLE_SMOOTHER      1     /**< Rauch-Tung-Striebel fixed-interval
+                                           smoother for the linear KF        */
+#endif
+
 /* ============================================================================
  * 5. NUMERICAL POLICIES
  * ============================================================================

@@ -68,6 +68,9 @@ kf_status_t kf_kf_set_process_noise_scalar(kf_kf_t *kf, kf_real_t q);           
 kf_status_t kf_kf_set_measurement_noise(kf_kf_t *kf, const kf_real_t *R);        /* m*m */
 kf_status_t kf_kf_set_measurement_noise_diagonal(kf_kf_t *kf, const kf_real_t *d);
 kf_status_t kf_kf_set_measurement_noise_scalar(kf_kf_t *kf, kf_real_t r);
+
+const kf_real_t *kf_kf_get_process_noise(const kf_kf_t *kf);     /* n*n, read Q */
+const kf_real_t *kf_kf_get_measurement_noise(const kf_kf_t *kf); /* m*m, read R */
 ```
 
 ### Model matrices
@@ -92,6 +95,54 @@ kf_status_t kf_kf_update(kf_kf_t *kf, const kf_real_t *z);              /* m val
 - `z` is the measurement vector; it may be `NULL` only if you want prediction
   without correction (though calling only `predict` is the normal way to do
   that).
+
+### Convenience constructors
+
+```c
+kf_status_t kf_kf_init_1d(kf_kf_t *kf, kf_real_t q, kf_real_t r);
+kf_status_t kf_kf_init_constant(kf_kf_t *kf, uint16_t n,
+                                kf_real_t q, kf_real_t r, kf_real_t p0);
+kf_status_t kf_kf_init_constant_velocity(kf_kf_t *kf, kf_real_t dt,
+                                         kf_real_t q_accel, kf_real_t r,
+                                         kf_real_t p0_pos, kf_real_t p0_vel);
+kf_status_t kf_kf_init_constant_acceleration(kf_kf_t *kf, kf_real_t dt,
+                                             kf_real_t q_jerk, kf_real_t r,
+                                             kf_real_t p0);
+```
+
+These configure the whole filter (F, H, Q, R, P) in one call for the most
+common models: 1-D / N-D constant signal, constant velocity, and constant
+acceleration. They build the model matrices for you, so beginners never have to
+write matrix algebra.
+
+### Extensions (optional feature sets)
+
+```c
+/* Innovation gating / NIS (KF_ENABLE_GATING) */
+kf_status_t kf_kf_set_gate_threshold(kf_kf_t *kf, kf_real_t chi2);
+kf_real_t   kf_kf_nis(const kf_kf_t *kf);
+kf_status_t kf_kf_update_gated(kf_kf_t *kf, const kf_real_t *z);
+
+/* Adaptive measurement noise (KF_ENABLE_ADAPTIVE_R) */
+kf_status_t kf_kf_adapt_r(kf_kf_t *kf, kf_real_t gamma, kf_real_t r_min);
+
+/* RTS fixed-interval smoother (KF_ENABLE_SMOOTHER) */
+kf_status_t kf_kf_smooth_step(kf_kf_t *kf,
+                              const kf_real_t *x_filt, const kf_real_t *P_filt,
+                              const kf_real_t *F,
+                              const kf_real_t *x_pred, const kf_real_t *P_pred,
+                              const kf_real_t *x_smooth_next,
+                              const kf_real_t *P_smooth_next,
+                              kf_real_t *x_smooth, kf_real_t *P_smooth);
+```
+
+- `kf_kf_update_gated` returns `KF_WARN_GATED` (positive) when a measurement is
+  rejected as an outlier; the state is left unchanged in that case.
+- `kf_kf_nis` returns the normalized innovation squared of the last update.
+- `kf_kf_adapt_r` updates `R` in place from the last innovation;
+  `kf_kf_get_measurement_noise()` returns the adapted `R`.
+- `kf_kf_smooth_step` performs one backward smoothing step; sweep it from the
+  end of a stored forward trajectory toward the start (see example 13).
 
 ### Advanced access (`KF_ENABLE_ADVANCED_API`)
 

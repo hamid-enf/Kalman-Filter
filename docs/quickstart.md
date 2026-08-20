@@ -7,9 +7,9 @@ sources on your include/source path (see [Installation](installation.md)).
 
 The mental model is simple:
 
-1. `kf_kf_init()` — tell the filter how many states and measurements it has.
-2. Configure the model matrices (`F`, `H`) and the noise (`Q`, `R`, `P`).
-3. Loop: `kf_kf_predict()` (advance time) then `kf_kf_update()` (feed a
+1. Initialise with a **one-call constructor** for the model you want (1-D,
+   constant velocity, constant acceleration, …).
+2. Loop: `kf_kf_predict()` (advance time) then `kf_kf_update()` (feed a
    measurement), and read the result with `kf_kf_get_state()`.
 
 ```c
@@ -18,15 +18,9 @@ The mental model is simple:
 static kf_kf_t kf;                      /* static => no heap, known size */
 
 void init(void) {
-    kf_real_t F[4] = {1, 1, 0, 1};      /* position+velocity, dt = 1 */
-    kf_real_t H[2] = {1, 0};            /* measure position only     */
-
-    kf_kf_init(&kf, 2, 1);
-    kf_kf_set_transition_matrix(&kf, F);
-    kf_kf_set_measurement_matrix(&kf, H);
-    kf_kf_set_process_noise_diagonal(&kf, (kf_real_t[]){0, 0.1f});
-    kf_kf_set_measurement_noise_scalar(&kf, 1.0f);
-    kf_kf_set_covariance_scalar(&kf, 10.0f);
+    /* position+velocity, dt=1; builds F, H, Q, R, P for you */
+    kf_kf_init_constant_velocity(&kf, /*dt=*/1.0f, /*q_accel=*/0.1f,
+                                 /*r=*/1.0f, /*p0_pos=*/10.0f, /*p0_vel=*/10.0f);
 }
 
 void step(kf_real_t measurement, kf_real_t dt) {
@@ -38,8 +32,18 @@ void step(kf_real_t measurement, kf_real_t dt) {
 }
 ```
 
-> `kf_kf_set_process_noise_diagonal` takes a diagonal vector; off-diagonals are
-> zeroed. For a scalar you can use `kf_kf_set_process_noise_scalar(q)`.
+Available constructors:
+
+| Constructor | Model |
+|-------------|-------|
+| `kf_kf_init_1d(q, r)` | 1-D constant signal |
+| `kf_kf_init_constant(n, q, r, p0)` | N-D constant signal |
+| `kf_kf_init_constant_velocity(dt, q, r, p0_pos, p0_vel)` | position + velocity |
+| `kf_kf_init_constant_acceleration(dt, q, r, p0)` | position + velocity + acceleration |
+
+For a custom model, use the general `kf_kf_init()` plus the granular setters
+(`kf_kf_set_transition_matrix`, `kf_kf_set_measurement_matrix`,
+`kf_kf_set_process_noise`, …).
 
 ## 2. Extended Kalman filter
 

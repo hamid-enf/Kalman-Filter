@@ -3,16 +3,12 @@
  *
  * State       : x = [position, velocity]                (n = 2)
  * Measurement : z = position + noise                    (m = 1)
- * Model       : x(k+1) = [pos + vel*dt; vel], dt = 1
- *               F = [[1, dt],[0, 1]]
- *               H = [1, 0]   (only position is measured)
- * Q           : process noise on the velocity (unknown accelerations)
- * R           : 1.0   (position sensor noise variance)
- * P0          : large diagonal
+ * Model       : x(k+1) = [pos + vel*dt; vel], dt = 1, H = [1, 0]
  *
  * Even though only position is measured, the filter *infers* the velocity from
  * the sequence of position measurements, and it can predict position between
- * measurements. This is the workhorse model for many tracking applications.
+ * measurements. The constructor kf_kf_init_constant_velocity() builds F, H, Q,
+ * R and P in one call.
  */
 
 #include "kalman.h"
@@ -22,23 +18,14 @@
 int main(void)
 {
     kf_kf_t kf;
-    kf_real_t F[4] = {1.0f, 1.0f, 0.0f, 1.0f};   /* dt = 1 */
-    kf_real_t H[2] = {1.0f, 0.0f};
-    kf_real_t Q[4] = {0.0f, 0.0f, 0.0f, 0.1f};   /* velocity noise only */
-    kf_real_t P0[4] = {10.0f, 0.0f, 0.0f, 10.0f};
-    kf_real_t x0[2] = {0.0f, 0.0f};
     kf_real_t truth_pos = 0.0f, truth_vel = 2.0f; /* true velocity = 2 */
     kf_real_t z;
     uint32_t rng = 3u;
     int i;
 
-    kf_kf_init(&kf, 2, 1);
-    kf_kf_set_transition_matrix(&kf, F);
-    kf_kf_set_measurement_matrix(&kf, H);
-    kf_kf_set_process_noise(&kf, Q);
-    kf_kf_set_measurement_noise_scalar(&kf, 1.0f);
-    kf_kf_set_covariance(&kf, P0);
-    kf_kf_set_state(&kf, x0);
+    /* dt=1, acceleration noise q=0.1, sensor noise r=1, initial P diag(10,10). */
+    kf_kf_init_constant_velocity(&kf, /*dt=*/1.0f, /*q_accel=*/0.1f,
+                                 /*r=*/1.0f, /*p0_pos=*/10.0f, /*p0_vel=*/10.0f);
 
     printf("step   true pos   est pos   est vel\n");
     for (i = 0; i < 60; i++) {

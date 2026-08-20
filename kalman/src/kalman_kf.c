@@ -27,7 +27,8 @@
 
 #define OFF_VEC_N  (0u)
 #define OFF_VEC_M  (OFF_VEC_N + KF_MAX_STATE_DIM)
-#define OFF_NN1    (OFF_VEC_M + KF_MAX_MEASUREMENT_DIM)
+#define OFF_VEC_M2 (OFF_VEC_M + KF_MAX_MEASUREMENT_DIM)
+#define OFF_NN1    (OFF_VEC_M2 + KF_MAX_MEASUREMENT_DIM)
 #define OFF_NN2    (OFF_NN1 + KF_NN)
 #define OFF_NM1    (OFF_NN2 + KF_NN)
 #define OFF_NM2    (OFF_NM1 + KF_NM)
@@ -66,6 +67,120 @@ kf_status_t kf_kf_init(kf_kf_t *kf, uint16_t n, uint16_t m)
     return kf_kf_reset(kf);
 }
 
+kf_status_t kf_kf_init_1d(kf_kf_t *kf, kf_real_t q, kf_real_t r)
+{
+    kf_real_t F[1] = { (kf_real_t)1 };
+    kf_real_t H[1] = { (kf_real_t)1 };
+    kf_status_t st;
+
+    KF_NULL_CHECK(kf);
+
+    st = kf_kf_init(kf, 1u, 1u);
+    if (st != KF_OK) {
+        return st;
+    }
+    (void)kf_kf_set_transition_matrix(kf, F);
+    (void)kf_kf_set_measurement_matrix(kf, H);
+    (void)kf_kf_set_process_noise_scalar(kf, q);
+    (void)kf_kf_set_measurement_noise_scalar(kf, r);
+    (void)kf_kf_set_covariance_scalar(kf, (kf_real_t)1);
+    return KF_OK;
+}
+
+kf_status_t kf_kf_init_constant(kf_kf_t *kf, uint16_t n,
+                                kf_real_t q, kf_real_t r, kf_real_t p0)
+{
+    kf_matrix_t M;
+    kf_status_t st;
+
+    KF_NULL_CHECK(kf);
+
+    st = kf_kf_init(kf, n, n);
+    if (st != KF_OK) {
+        return st;
+    }
+    kf_view(&M, kf->F, n, n);
+    (void)kf_matrix_identity(&M);
+    kf_view(&M, kf->H, n, n);
+    (void)kf_matrix_identity(&M);
+    (void)kf_kf_set_process_noise_scalar(kf, q);
+    (void)kf_kf_set_measurement_noise_scalar(kf, r);
+    (void)kf_kf_set_covariance_scalar(kf, p0);
+    return KF_OK;
+}
+
+kf_status_t kf_kf_init_constant_velocity(kf_kf_t *kf, kf_real_t dt,
+                                         kf_real_t q_accel, kf_real_t r,
+                                         kf_real_t p0_pos, kf_real_t p0_vel)
+{
+    kf_real_t F[4] = { (kf_real_t)1, dt, (kf_real_t)0, (kf_real_t)1 };
+    kf_real_t H[2] = { (kf_real_t)1, (kf_real_t)0 };
+    kf_real_t Q[4];
+    kf_real_t P0[4] = { p0_pos, (kf_real_t)0, (kf_real_t)0, p0_vel };
+    kf_real_t dt2 = dt * dt;
+    kf_real_t dt3 = dt2 * dt;
+    kf_status_t st;
+
+    KF_NULL_CHECK(kf);
+
+    st = kf_kf_init(kf, 2u, 1u);
+    if (st != KF_OK) {
+        return st;
+    }
+    Q[0] = q_accel * (dt2 * dt2 * (kf_real_t)0.25);   /* dt^4/4 */
+    Q[1] = q_accel * (dt3 * (kf_real_t)0.5);          /* dt^3/2 */
+    Q[2] = Q[1];
+    Q[3] = q_accel * dt2;                              /* dt^2   */
+
+    (void)kf_kf_set_transition_matrix(kf, F);
+    (void)kf_kf_set_measurement_matrix(kf, H);
+    (void)kf_kf_set_process_noise(kf, Q);
+    (void)kf_kf_set_measurement_noise_scalar(kf, r);
+    (void)kf_kf_set_covariance(kf, P0);
+    return KF_OK;
+}
+
+kf_status_t kf_kf_init_constant_acceleration(kf_kf_t *kf, kf_real_t dt,
+                                             kf_real_t q_jerk, kf_real_t r,
+                                             kf_real_t p0)
+{
+    kf_real_t F[9] = { (kf_real_t)1, dt, dt * dt * (kf_real_t)0.5,
+                       (kf_real_t)0, (kf_real_t)1, dt,
+                       (kf_real_t)0, (kf_real_t)0, (kf_real_t)1 };
+    kf_real_t H[3] = { (kf_real_t)1, (kf_real_t)0, (kf_real_t)0 };
+    kf_real_t Q[9];
+    kf_real_t dt2 = dt * dt;
+    kf_real_t dt3 = dt2 * dt;
+    kf_real_t dt4 = dt2 * dt2;
+    kf_real_t dt5 = dt4 * dt;
+    kf_real_t dt6 = dt4 * dt2;
+    kf_status_t st;
+
+    KF_NULL_CHECK(kf);
+
+    st = kf_kf_init(kf, 3u, 1u);
+    if (st != KF_OK) {
+        return st;
+    }
+    /* Q = q_jerk * G G^T,  G = [dt^3/6, dt^2/2, dt]^T */
+    Q[0] = q_jerk * dt6 * (kf_real_t)(1.0 / 36.0);    /* dt^6/36 */
+    Q[1] = q_jerk * dt5 * (kf_real_t)(1.0 / 12.0);    /* dt^5/12 */
+    Q[2] = q_jerk * dt4 * (kf_real_t)(1.0 / 6.0);     /* dt^4/6  */
+    Q[3] = Q[1];
+    Q[4] = q_jerk * dt4 * (kf_real_t)0.25;            /* dt^4/4  */
+    Q[5] = q_jerk * dt3 * (kf_real_t)0.5;             /* dt^3/2  */
+    Q[6] = Q[2];
+    Q[7] = Q[5];
+    Q[8] = q_jerk * dt2;                               /* dt^2    */
+
+    (void)kf_kf_set_transition_matrix(kf, F);
+    (void)kf_kf_set_measurement_matrix(kf, H);
+    (void)kf_kf_set_process_noise(kf, Q);
+    (void)kf_kf_set_measurement_noise_scalar(kf, r);
+    (void)kf_kf_set_covariance_scalar(kf, p0);
+    return KF_OK;
+}
+
 kf_status_t kf_kf_reset(kf_kf_t *kf)
 {
     kf_matrix_t M;
@@ -101,6 +216,11 @@ kf_status_t kf_kf_reset(kf_kf_t *kf)
             kf->K[i] = (kf_real_t)0;
         }
     }
+#endif
+
+#if KF_ENABLE_GATING
+    kf->gate_threshold = (kf_real_t)0;
+    kf->last_nis = (kf_real_t)0;
 #endif
 
     return KF_OK;
@@ -259,6 +379,14 @@ kf_status_t kf_kf_set_process_noise_scalar(kf_kf_t *kf, kf_real_t q)
     return KF_OK;
 }
 
+const kf_real_t *kf_kf_get_process_noise(const kf_kf_t *kf)
+{
+    if (kf == NULL) {
+        return NULL;
+    }
+    return kf->Q;
+}
+
 kf_status_t kf_kf_set_measurement_noise(kf_kf_t *kf, const kf_real_t *R)
 {
     uint16_t i;
@@ -305,6 +433,14 @@ kf_status_t kf_kf_set_measurement_noise_scalar(kf_kf_t *kf, kf_real_t r)
     (void)kf_matrix_identity(&M);
     (void)kf_matrix_scale(&M, r);
     return KF_OK;
+}
+
+const kf_real_t *kf_kf_get_measurement_noise(const kf_kf_t *kf)
+{
+    if (kf == NULL) {
+        return NULL;
+    }
+    return kf->R;
 }
 
 /* --------------------------------------------------------------------------
@@ -388,7 +524,7 @@ kf_status_t kf_kf_predict(kf_kf_t *kf, const kf_real_t *u, kf_real_t dt)
  * Update
  * ------------------------------------------------------------------------ */
 
-kf_status_t kf_kf_update(kf_kf_t *kf, const kf_real_t *z)
+static kf_status_t kf_kf_update_impl(kf_kf_t *kf, const kf_real_t *z, int gate)
 {
     kf_matrix_t Hm, Pm, Rm, Bm, Sm, Km, Tm, T2, KR, RHS;
     kf_real_t *s;
@@ -400,6 +536,10 @@ kf_status_t kf_kf_update(kf_kf_t *kf, const kf_real_t *z)
 
     KF_NULL_CHECK(kf);
     KF_NULL_CHECK(z);
+
+#if !KF_ENABLE_GATING
+    (void)gate;
+#endif
 
     if (kf->initialized == 0u) {
         return KF_ERROR_NOT_INITIALIZED;
@@ -415,7 +555,7 @@ kf_status_t kf_kf_update(kf_kf_t *kf, const kf_real_t *z)
     /* Innovation y = z - H x */
     (void)kf_mat_vec_mul(&s[OFF_VEC_M], &Hm, kf->x);   /* Hx            */
     kf_vec_sub(&s[OFF_VEC_M], z, &s[OFF_VEC_M], m); /* y = z - Hx */
-#if KF_ENABLE_ADVANCED_API
+#if KF_ENABLE_ADVANCED_API || KF_ENABLE_GATING || KF_ENABLE_ADAPTIVE_R
     kf_vec_copy(kf->y, &s[OFF_VEC_M], m);
 #endif
 
@@ -434,6 +574,26 @@ kf_status_t kf_kf_update(kf_kf_t *kf, const kf_real_t *z)
     if (st != KF_OK) {
         return st;
     }
+
+#if KF_ENABLE_GATING
+    {
+        /* NIS = y^T S^-1 y  (outlier detection). */
+        kf_matrix_t Yv;
+        kf_view(&Yv, &s[OFF_VEC_M2], m, 1u);
+        kf_vec_copy(&s[OFF_VEC_M2], &s[OFF_VEC_M], m);
+        st = kf_matrix_cholesky_solve(&Sm, &Yv);       /* Yv = S^-1 y */
+        if (st != KF_OK) {
+            return st;
+        }
+        kf->last_nis = kf_vec_dot(&s[OFF_VEC_M], &s[OFF_VEC_M2], m);
+        if (gate != 0 &&
+            kf->gate_threshold > (kf_real_t)0 &&
+            kf->last_nis > kf->gate_threshold) {
+            return KF_WARN_GATED;   /* reject outlier: state unchanged */
+        }
+    }
+#endif
+
     kf_view(&RHS, &s[OFF_MN], m, n);
     (void)kf_matrix_transpose(&RHS, &Bm);       /* RHS = B^T          */
     st = kf_matrix_cholesky_solve(&Sm, &RHS); /* RHS = K^T      */
@@ -485,6 +645,233 @@ kf_status_t kf_kf_update(kf_kf_t *kf, const kf_real_t *z)
 
     return KF_OK;
 }
+
+kf_status_t kf_kf_update(kf_kf_t *kf, const kf_real_t *z)
+{
+    return kf_kf_update_impl(kf, z, 0);
+}
+
+#if KF_ENABLE_GATING
+kf_status_t kf_kf_update_gated(kf_kf_t *kf, const kf_real_t *z)
+{
+    return kf_kf_update_impl(kf, z, 1);
+}
+
+kf_status_t kf_kf_set_gate_threshold(kf_kf_t *kf, kf_real_t chi2)
+{
+    KF_NULL_CHECK(kf);
+
+    if (kf->initialized == 0u) {
+        return KF_ERROR_NOT_INITIALIZED;
+    }
+    if (chi2 < (kf_real_t)0) {
+        return KF_ERROR_INVALID_PARAMETER;
+    }
+    kf->gate_threshold = chi2;
+    return KF_OK;
+}
+
+kf_real_t kf_kf_nis(const kf_kf_t *kf)
+{
+    if (kf == NULL) {
+        return (kf_real_t)0;
+    }
+    return kf->last_nis;
+}
+#endif /* KF_ENABLE_GATING */
+
+#if KF_ENABLE_ADAPTIVE_R
+kf_status_t kf_kf_adapt_r(kf_kf_t *kf, kf_real_t gamma, kf_real_t r_min)
+{
+    kf_matrix_t Hm, Pm, Rm, YYt;
+    kf_real_t *s;
+    uint16_t n;
+    uint16_t m;
+    uint16_t i;
+
+    KF_NULL_CHECK(kf);
+
+    if (kf->initialized == 0u) {
+        return KF_ERROR_NOT_INITIALIZED;
+    }
+    if (gamma <= (kf_real_t)0 || gamma >= (kf_real_t)1) {
+        return KF_ERROR_INVALID_PARAMETER;
+    }
+    n = kf->n;
+    m = kf->m;
+    s = kf->scratch;
+
+    kf_view(&Hm, kf->H, m, n);
+    kf_view(&Pm, kf->P, n, n);
+    kf_view(&Rm, kf->R, m, m);
+
+    /* Estimate the innovation covariance S_hat = H P H^T + y y^T. */
+    kf_view(&YYt, &s[OFF_MM], m, m);
+    {
+        kf_matrix_t HP;
+        kf_view(&HP, &s[OFF_NM1], m, n);
+        (void)kf_matrix_mul(&HP, &Hm, &Pm);             /* HP = H P   */
+        (void)kf_matrix_mul_transpose_b(&YYt, &HP, &Hm);/* YYt=HPH^T  */
+    }
+    {
+        uint16_t rr;
+        for (rr = 0u; rr < m; rr++) {
+            uint16_t cc;
+            for (cc = 0u; cc < m; cc++) {
+                YYt.data[(size_t)rr * m + cc] += kf->y[rr] * kf->y[cc];
+            }
+        }
+    }
+
+    /* R = gamma * R + (1 - gamma) * (H P H^T + y y^T), with a diagonal floor. */
+    for (i = 0u; i < (uint16_t)(m * m); i++) {
+        Rm.data[i] = (gamma * Rm.data[i]) + ((kf_real_t)1 - gamma) * YYt.data[i];
+    }
+    for (i = 0u; i < m; i++) {
+        if (Rm.data[(size_t)i * m + i] < r_min) {
+            Rm.data[(size_t)i * m + i] = r_min;
+        }
+    }
+    return KF_OK;
+}
+#endif /* KF_ENABLE_ADAPTIVE_R */
+
+/* --------------------------------------------------------------------------
+ * RTS smoother (optional)
+ * ------------------------------------------------------------------------ */
+
+#if KF_ENABLE_SMOOTHER
+
+#define SM_PC    (0u)
+#define SM_AT    (SM_PC + KF_NN)
+#define SM_D     (SM_AT + KF_NN)
+#define SM_T1    (SM_D  + KF_NN)
+#define SM_DVEC  (SM_T1 + KF_NN)
+#define SM_END   (SM_DVEC + KF_MAX_STATE_DIM)
+
+#if SM_END != KF_KF_SMOOTHER_SCRATCH_FLOATS
+#error "kalman_kf.c: smoother scratch layout mismatch"
+#endif
+
+/* C = A * B  (all n x n, row-major; A and B are read-only). */
+static void kf_sm_mul(const kf_real_t *A, const kf_real_t *B, kf_real_t *C,
+                      uint16_t n)
+{
+    uint16_t i;
+    for (i = 0u; i < n; i++) {
+        uint16_t j;
+        for (j = 0u; j < n; j++) {
+            kf_real_t sum = (kf_real_t)0;
+            uint16_t k;
+            for (k = 0u; k < n; k++) {
+                sum += A[(size_t)i * n + k] * B[(size_t)k * n + j];
+            }
+            C[(size_t)i * n + j] = sum;
+        }
+    }
+}
+
+/* C = A^T * B  (all n x n, row-major; A and B are read-only). */
+static void kf_sm_mul_at(const kf_real_t *A, const kf_real_t *B, kf_real_t *C,
+                         uint16_t n)
+{
+    uint16_t i;
+    for (i = 0u; i < n; i++) {
+        uint16_t j;
+        for (j = 0u; j < n; j++) {
+            kf_real_t sum = (kf_real_t)0;
+            uint16_t k;
+            for (k = 0u; k < n; k++) {
+                sum += A[(size_t)k * n + i] * B[(size_t)k * n + j];
+            }
+            C[(size_t)i * n + j] = sum;
+        }
+    }
+}
+
+kf_status_t kf_kf_smooth_step(kf_kf_t *kf,
+                              const kf_real_t *x_filt,
+                              const kf_real_t *P_filt,
+                              const kf_real_t *F,
+                              const kf_real_t *x_pred,
+                              const kf_real_t *P_pred,
+                              const kf_real_t *x_smooth_next,
+                              const kf_real_t *P_smooth_next,
+                              kf_real_t *x_smooth,
+                              kf_real_t *P_smooth)
+{
+    kf_matrix_t Pcm, ATm, Psm;
+    kf_real_t *ss;
+    kf_status_t st;
+    uint16_t n;
+    uint16_t i;
+
+    KF_NULL_CHECK(kf);
+    KF_NULL_CHECK(x_filt);
+    KF_NULL_CHECK(P_filt);
+    KF_NULL_CHECK(F);
+    KF_NULL_CHECK(x_pred);
+    KF_NULL_CHECK(P_pred);
+    KF_NULL_CHECK(x_smooth_next);
+    KF_NULL_CHECK(P_smooth_next);
+    KF_NULL_CHECK(x_smooth);
+    KF_NULL_CHECK(P_smooth);
+
+    if (kf->initialized == 0u) {
+        return KF_ERROR_NOT_INITIALIZED;
+    }
+    n = kf->n;
+    ss = kf->smoother_scratch;
+
+    /* AT = A^T = F * P_filt  (P_filt is symmetric). */
+    kf_sm_mul(F, P_filt, &ss[SM_AT], n);
+
+    /* Pc = cholesky(P_pred). */
+    for (i = 0u; i < (uint16_t)(n * n); i++) {
+        ss[SM_PC + i] = P_pred[i];
+    }
+    kf_view(&Pcm, &ss[SM_PC], n, n);
+    st = kf_matrix_cholesky(&Pcm);
+    if (st != KF_OK) {
+        return st;
+    }
+
+    /* AT = C^T = (P_pred)^-1 A^T. */
+    kf_view(&ATm, &ss[SM_AT], n, n);
+    st = kf_matrix_cholesky_solve(&Pcm, &ATm);
+    if (st != KF_OK) {
+        return st;
+    }
+
+    /* d = x_smooth_next - x_pred;  x_smooth = x_filt + AT^T d. */
+    kf_vec_sub(&ss[SM_DVEC], x_smooth_next, x_pred, n);
+    for (i = 0u; i < n; i++) {
+        kf_real_t sum = (kf_real_t)0;
+        uint16_t k;
+        for (k = 0u; k < n; k++) {
+            sum += ss[SM_AT + (size_t)k * n + i] * ss[SM_DVEC + k];
+        }
+        x_smooth[i] = x_filt[i] + sum;
+    }
+
+    /* D = P_smooth_next - P_pred. */
+    for (i = 0u; i < (uint16_t)(n * n); i++) {
+        ss[SM_D + i] = P_smooth_next[i] - P_pred[i];
+    }
+
+    /* T1 = AT^T D;  P_smooth = P_filt + T1 * AT. */
+    kf_sm_mul_at(&ss[SM_AT], &ss[SM_D], &ss[SM_T1], n);
+    kf_sm_mul(&ss[SM_T1], &ss[SM_AT], &ss[SM_D], n);   /* reuse SM_D */
+    for (i = 0u; i < (uint16_t)(n * n); i++) {
+        P_smooth[i] = P_filt[i] + ss[SM_D + i];
+    }
+    kf_view(&Psm, P_smooth, n, n);
+    (void)kf_matrix_symmetrize(&Psm);
+
+    return KF_OK;
+}
+
+#endif /* KF_ENABLE_SMOOTHER */
 
 /* --------------------------------------------------------------------------
  * Advanced / diagnostics

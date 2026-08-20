@@ -43,7 +43,11 @@ extern "C" {
     ((2u * KF_MAX_STATE_DIM * KF_MAX_STATE_DIM) \
    + (3u * KF_MAX_STATE_DIM * KF_MAX_MEASUREMENT_DIM) \
    + (KF_MAX_MEASUREMENT_DIM * KF_MAX_MEASUREMENT_DIM) \
-   + KF_MAX_STATE_DIM + KF_MAX_MEASUREMENT_DIM)
+   + KF_MAX_STATE_DIM + (2u * KF_MAX_MEASUREMENT_DIM))
+
+/* Scratch for the RTS smoother: 4 n x n temporaries + 1 n-vector. */
+#define KF_KF_SMOOTHER_SCRATCH_FLOATS \
+    ((4u * KF_MAX_STATE_DIM * KF_MAX_STATE_DIM) + KF_MAX_STATE_DIM)
 
 #if KF_ENABLE_KF
 
@@ -66,9 +70,21 @@ typedef struct {
     kf_real_t R[KF_MAX_MEASUREMENT_DIM * KF_MAX_MEASUREMENT_DIM];    /* m x m   */
     kf_real_t H[KF_MAX_MEASUREMENT_DIM * KF_MAX_STATE_DIM];          /* m x n   */
 
+#if KF_ENABLE_ADVANCED_API || KF_ENABLE_GATING || KF_ENABLE_ADAPTIVE_R
+    kf_real_t y[KF_MAX_MEASUREMENT_DIM];  /**< innovation from last update    */
+#endif
+
 #if KF_ENABLE_ADVANCED_API
-    kf_real_t y[KF_MAX_MEASUREMENT_DIM];                  /* last innovation   */
     kf_real_t K[KF_MAX_STATE_DIM * KF_MAX_MEASUREMENT_DIM];/* last gain n x m */
+#endif
+
+#if KF_ENABLE_GATING
+    kf_real_t gate_threshold;             /**< chi-square gate; 0 = disabled  */
+    kf_real_t last_nis;                   /**< last normalized innovation sq  */
+#endif
+
+#if KF_ENABLE_SMOOTHER
+    kf_real_t smoother_scratch[KF_KF_SMOOTHER_SCRATCH_FLOATS];
 #endif
 
     kf_real_t scratch[KF_KF_SCRATCH_FLOATS];   /**< internal temporaries        */
@@ -76,6 +92,59 @@ typedef struct {
 
 /* ==========================================================================
  * Initialisation / reset
+ * ==========================================================================
+ *
+ * kf_kf_init() is the general entry point. For the most common models, the
+ * convenience constructors below configure the entire filter (F, H, Q, R, P)
+ * in a single call, so a beginner never has to build matrices by hand.
+ */
+
+/**
+ * @brief Convenience: 1-D constant-signal filter.
+ *
+ * Sets F = [1], H = [1], P = 1, Q = q, R = r and x = 0. Ideal for smoothing a
+ * single noisy scalar (temperature, voltage, ...).
+ *
+ *      kf_kf_init_1d(&kf, q, r);
+ */
+kf_status_t kf_kf_init_1d(kf_kf_t *kf, kf_real_t q, kf_real_t r);
+
+/**
+ * @brief Convenience: N-D constant signal (F = I, H = I).
+ *
+ * Sets P = p0 * I, Q = q * I, R = r * I. Each state is measured directly and
+ * drifts independently.
+ */
+kf_status_t kf_kf_init_constant(kf_kf_t *kf, uint16_t n,
+                                kf_real_t q, kf_real_t r, kf_real_t p0);
+
+/**
+ * @brief Convenience: constant-velocity model (position + velocity).
+ *
+ *      x = [pos, vel],  F = [[1, dt],[0, 1]],  H = [1, 0]
+ *      Q = q_accel * [[dt^4/4, dt^3/2],[dt^3/2, dt^2]]   (white acceleration)
+ *      P = diag(p0_pos, p0_vel),  R = r
+ *
+ * @param q_accel  Variance of the driving white acceleration.
+ */
+kf_status_t kf_kf_init_constant_velocity(kf_kf_t *kf, kf_real_t dt,
+                                         kf_real_t q_accel, kf_real_t r,
+                                         kf_real_t p0_pos, kf_real_t p0_vel);
+
+/**
+ * @brief Convenience: constant-acceleration model (position + velocity +
+ * acceleration).
+ *
+ *      x = [pos, vel, acc],  F has dt and dt^2/2 terms,  H = [1, 0, 0]
+ *      Q = q_jerk * G G^T with G = [dt^3/6, dt^2/2, dt]^T   (white jerk)
+ *      P = p0 * I,  R = r
+ */
+kf_status_t kf_kf_init_constant_acceleration(kf_kf_t *kf, kf_real_t dt,
+                                             kf_real_t q_jerk, kf_real_t r,
+                                             kf_real_t p0);
+
+/* ==========================================================================
+ * Reset
  * ========================================================================== */
 
 /**
@@ -139,6 +208,9 @@ kf_status_t kf_kf_set_process_noise_diagonal(kf_kf_t *kf, const kf_real_t *diag)
 /** @brief Set Q = q * I (scalar process noise). */
 kf_status_t kf_kf_set_process_noise_scalar(kf_kf_t *kf, kf_real_t q);
 
+/** @brief Return a pointer to the process-noise covariance Q (n x n, row-major). */
+const kf_real_t *kf_kf_get_process_noise(const kf_kf_t *kf);
+
 /** @brief Set the full measurement-noise covariance R (m x m, row-major). */
 kf_status_t kf_kf_set_measurement_noise(kf_kf_t *kf, const kf_real_t *R);
 
@@ -147,6 +219,9 @@ kf_status_t kf_kf_set_measurement_noise_diagonal(kf_kf_t *kf, const kf_real_t *d
 
 /** @brief Set R = r * I (scalar measurement noise). */
 kf_status_t kf_kf_set_measurement_noise_scalar(kf_kf_t *kf, kf_real_t r);
+
+/** @brief Return a pointer to the measurement-noise covariance R (m x m, row-major). */
+const kf_real_t *kf_kf_get_measurement_noise(const kf_kf_t *kf);
 
 /* ==========================================================================
  * Model configuration
@@ -194,6 +269,95 @@ kf_status_t kf_kf_predict(kf_kf_t *kf, const kf_real_t *u, kf_real_t dt);
  *            (prediction only).
  */
 kf_status_t kf_kf_update(kf_kf_t *kf, const kf_real_t *z);
+
+/* ==========================================================================
+ * Extensions (optional feature sets)
+ * ========================================================================== */
+
+#if KF_ENABLE_GATING
+/**
+ * @brief Set the innovation-gating threshold (chi-square value).
+ *
+ * With a non-zero threshold, kf_kf_update_gated() rejects measurements whose
+ * normalized innovation squared (NIS) exceeds the threshold, protecting the
+ * estimate from outliers (spikes). Typical 1-D chi-square values: 3.84 (95%),
+ * 6.63 (99%), 10.83 (99.9%). Set 0 to disable gating.
+ */
+kf_status_t kf_kf_set_gate_threshold(kf_kf_t *kf, kf_real_t chi2);
+
+/**
+ * @brief Normalized innovation squared (NIS = y^T S^-1 y) from the most recent
+ * update. Useful for monitoring filter health and for adaptive tuning.
+ */
+kf_real_t kf_kf_nis(const kf_kf_t *kf);
+
+/**
+ * @brief Measurement update with innovation gating.
+ *
+ * Computes the NIS first; if it exceeds the configured gate threshold the
+ * measurement is treated as an outlier and the state/covariance are left
+ * unchanged (returns KF_WARN_GATED). Otherwise behaves exactly like
+ * kf_kf_update() and returns KF_OK.
+ */
+kf_status_t kf_kf_update_gated(kf_kf_t *kf, const kf_real_t *z);
+#endif /* KF_ENABLE_GATING */
+
+#if KF_ENABLE_ADAPTIVE_R
+/**
+ * @brief Adapt the measurement-noise covariance R online from the most recent
+ * innovation (innovation covariance matching).
+ *
+ *      R <- gamma * R + (1 - gamma) * (y y^T + H P H^T)
+ *
+ * Called after an update. `gamma` in (0, 1) is the forgetting factor (closer
+ * to 1 = slower adaptation); `r_min` is a floor applied to the diagonal to
+ * keep R positive definite. The additive H P H^T term makes the estimator
+ * conservative and well-conditioned.
+ */
+kf_status_t kf_kf_adapt_r(kf_kf_t *kf, kf_real_t gamma, kf_real_t r_min);
+#endif /* KF_ENABLE_ADAPTIVE_R */
+
+#if KF_ENABLE_SMOOTHER
+/**
+ * @brief One backward step of the Rauch-Tung-Striebel (RTS) fixed-interval
+ * smoother.
+ *
+ * Given the forward-pass filtered/predicted trajectory and the (already
+ * smoothed) estimate at step k+1, computes the smoothed estimate at step k:
+ *
+ *      C   = P_k F^T (P_{k+1|k})^-1
+ *      x_s = x_k + C (x_{s,k+1} - x_{k+1|k})
+ *      P_s = P_k + C (P_{s,k+1} - P_{k+1|k}) C^T
+ *
+ * Usage: run the filter forward storing x_k, P_k, x_{k+1|k}, P_{k+1|k} and F_k
+ * per step; then sweep backward from k = N-1 down to 0, seeding the sweep with
+ * x_{s,N} = x_N, P_{s,N} = P_N. The result is a smoother, lower-variance
+ * trajectory than the forward filter alone (see example 13).
+ *
+ * All matrices are n x n row-major; vectors are n elements.
+ *
+ * @param kf             Filter instance (provides n and scratch space).
+ * @param x_filt         Forward filtered state at step k.
+ * @param P_filt         Forward filtered covariance at step k.
+ * @param F              State-transition matrix for step k -> k+1.
+ * @param x_pred         Forward predicted state at step k+1 (x_{k+1|k}).
+ * @param P_pred         Forward predicted covariance at step k+1.
+ * @param x_smooth_next  Smoothed state at step k+1.
+ * @param P_smooth_next  Smoothed covariance at step k+1.
+ * @param x_smooth       [out] Smoothed state at step k.
+ * @param P_smooth       [out] Smoothed covariance at step k.
+ */
+kf_status_t kf_kf_smooth_step(kf_kf_t *kf,
+                              const kf_real_t *x_filt,
+                              const kf_real_t *P_filt,
+                              const kf_real_t *F,
+                              const kf_real_t *x_pred,
+                              const kf_real_t *P_pred,
+                              const kf_real_t *x_smooth_next,
+                              const kf_real_t *P_smooth_next,
+                              kf_real_t *x_smooth,
+                              kf_real_t *P_smooth);
+#endif /* KF_ENABLE_SMOOTHER */
 
 /* ==========================================================================
  * Advanced / diagnostics (optional feature sets)

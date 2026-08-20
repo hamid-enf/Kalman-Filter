@@ -23,6 +23,8 @@ extern "C" {
 
 typedef enum {
     KF_OK                       =  0,  /**< Success                          */
+    KF_WARN_GATED               =  1,  /**< Measurement rejected by gating
+                                            (not an error)                   */
     KF_ERROR_NULL_POINTER       = -1,  /**< A required pointer was NULL      */
     KF_ERROR_INVALID_DIMENSION  = -2,  /**< Matrix/vector dimension mismatch */
     KF_ERROR_INVALID_PARAMETER  = -3,  /**< Parameter out of range           */

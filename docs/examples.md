@@ -19,6 +19,9 @@ make run-examples
 | 08 | `08_variable_dt` | [pos, vel] | position | Irregular sampling |
 | 09 | `09_ekf_basic` | angle | sin(angle) | EKF with a nonlinear measurement |
 | 10 | `10_ukf_basic` | angle | sin(angle) | Same, but UKF (no Jacobians) |
+| 11 | `11_outlier_gating` | scalar | scalar | Rejecting sensor spikes via NIS gating |
+| 12 | `12_adaptive_r` | scalar | scalar | Adapting R online to unknown sensor noise |
+| 13 | `13_rts_smoother` | scalar | scalar | RTS smoother (offline post-processing) |
 
 ## 01 — 1D signal filtering
 A constant signal observed through noise. `F = [1]`, `H = [1]`, scalar `Q`, `R`,
@@ -62,6 +65,21 @@ callbacks (`f`, `F`, `h`, `H`) and converges to the true angle.
 ## 10 — UKF, nonlinear measurement
 The same problem solved with the UKF: only `f` and `h` are needed (no
 Jacobians). Also shows `kf_ukf_set_parameters`.
+
+## 11 — Outlier gating
+A constant signal with occasional spikes (every 10th sample = 500). After
+converging, `kf_kf_update_gated()` rejects the spikes (NIS above the 6.63
+chi-square gate) and the estimate stays locked on the true value.
+
+## 12 — Adaptive R
+Starts with an over-optimistic `R = 0.01` while the sensor is really noisy
+(variance ~1). `kf_kf_adapt_r()` drives `R` toward the true noise level
+online, so no manual tuning is needed.
+
+## 13 — RTS smoother
+Filters a random walk forward (storing `x`,`P`,`x_pred`,`P_pred`,`F`), then
+sweeps backward with `kf_kf_smooth_step()`. The smoothed trajectory is visibly
+smoother and has lower variance than the forward filter.
 
 The STM32-specific skeletons live in `examples/stm32/` (see
 [STM32 integration](stm32_integration.md)).

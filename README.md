@@ -4,13 +4,17 @@ A **dependency-free, allocation-free Kalman filtering library for STM32**
 microcontrollers — written in C11, with a tiny high-level API and a
 sophisticated, numerically robust core.
 
-It provides three estimators, each independently switchable at compile time:
+It provides three estimators, each independently switchable at compile time,
+plus a set of practical extensions in the Kalman family:
 
-| Filter | When to use it |
-|--------|----------------|
+| Component | When to use it |
+|-----------|----------------|
 | **KF** — Linear Kalman filter | Linear models (position, velocity, temperature, …) — the default choice |
 | **EKF** — Extended Kalman filter | Mildly nonlinear models with computable Jacobians |
 | **UKF** — Unscented Kalman filter | Strongly nonlinear models, or when Jacobians are hard/impossible |
+| **Innovation gating (NIS)** | Rejecting sensor outliers/spikes |
+| **Adaptive R** | Unknown or drifting sensor noise |
+| **RTS smoother** | Offline post-processing of a recorded trajectory |
 
 ## Highlights
 
@@ -21,8 +25,10 @@ It provides three estimators, each independently switchable at compile time:
 - **Numerically robust** — Joseph-form covariance update, Cholesky-based
   solves instead of naive matrix inversions, covariance symmetrisation,
   optional NaN/Inf diagnostics.
-- **Simple outside, sophisticated inside** — a beginner needs only
-  `init → predict → update → get_state`; experts get full matrix access.
+- **Simple outside, sophisticated inside** — one-call constructors
+  (`kf_kf_init_1d`, `kf_kf_init_constant_velocity`, …) for the common cases;
+  `init → predict → update → get_state` is all a beginner needs, while experts
+  get full matrix access.
 - **MISRA-C:2012** — verified with cppcheck + the official `misra.py` addon:
   every Mandatory/Required rule cppcheck checks is clean; advisory findings are
   documented deviations (see `docs/misra_compliance.md`). C11, explicit integer
@@ -35,16 +41,8 @@ It provides three estimators, each independently switchable at compile time:
 ```c
 #include "kalman.h"
 
-kf_kf_t kf;                         /* 1 state, 1 measurement        */
-kf_real_t F[1] = {1.0f};            /* x(k+1) = x(k)                 */
-kf_real_t H[1] = {1.0f};            /* z(k)   = x(k) + noise         */
-
-kf_kf_init(&kf, 1, 1);
-kf_kf_set_transition_matrix(&kf, F);
-kf_kf_set_measurement_matrix(&kf, H);
-kf_kf_set_process_noise_scalar(&kf, 1e-3f);
-kf_kf_set_measurement_noise_scalar(&kf, 1.0f);
-kf_kf_set_covariance_scalar(&kf, 1.0f);
+kf_kf_t kf;
+kf_kf_init_1d(&kf, /*q=*/1e-3f, /*r=*/1.0f);   /* whole model in one call */
 
 for (;;) {
     kf_real_t z = read_sensor();   /* your noisy measurement         */
@@ -55,6 +53,12 @@ for (;;) {
     kf_real_t x = kf_kf_get_state(&kf)[0];   /* filtered estimate    */
 }
 ```
+
+For position+velocity use `kf_kf_init_constant_velocity(&kf, dt, q, r, p0_pos,
+p0_vel)`; for position+velocity+acceleration use
+`kf_kf_init_constant_acceleration(...)`. These build `F`, `H`, `Q`, `R` and `P`
+for you — no matrix algebra required. For anything custom, the granular setters
+(`kf_kf_set_transition_matrix`, …) are still available.
 
 The same pattern, with different prefixes, applies to `kf_ekf_*` and `kf_ukf_*`
 (the EKF/UKF additionally register model callback functions — see the

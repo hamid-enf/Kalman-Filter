@@ -52,9 +52,13 @@ allocates for the instance itself). With `KF_MAX_STATE_DIM=6`,
 
 | Instance | Bytes (host build) | Composition |
 |----------|--------------------|-------------|
-| `kf_kf_t` | ~1.4 KB | `x` + `P,Q,F` (n² each) + `R,H` + scratch |
+| `kf_kf_t` | ~2.0 KB | `x` + `P,Q,F` (n² each) + `R,H` + scratch + smoother scratch |
 | `kf_ekf_t` | ~1.5 KB | KF storage + model callbacks + extra scratch |
 | `kf_ukf_t` | ~2.2 KB | KF storage + sigma points `(2n+1)×(n + n + m)` + weights |
+
+The `kf_kf_t` size includes the RTS-smoother scratch (~0.6 KB at n = 6).
+Disable `KF_ENABLE_SMOOTHER=0` (or lower `KF_MAX_STATE_DIM`) to reclaim it if
+you do not use offline smoothing; gating and adaptive-R add only a few bytes.
 
 Scale linearly/quadratically with `n`,`m`. To shrink, lower
 `KF_MAX_STATE_DIM`/`KF_MAX_MEASUREMENT_DIM` (see
