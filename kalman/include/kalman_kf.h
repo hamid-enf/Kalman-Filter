@@ -83,6 +83,11 @@ typedef struct {
     kf_real_t last_nis;                   /**< last normalized innovation sq  */
 #endif
 
+#if KF_ENABLE_ADAPTIVE_R
+    kf_real_t resid[KF_MAX_MEASUREMENT_DIM]; /**< residual r = z - H x^+ from
+                                                  the last update               */
+#endif
+
 #if KF_ENABLE_SMOOTHER
     kf_real_t smoother_scratch[KF_KF_SMOOTHER_SCRATCH_FLOATS];
 #endif
@@ -305,14 +310,18 @@ kf_status_t kf_kf_update_gated(kf_kf_t *kf, const kf_real_t *z);
 #if KF_ENABLE_ADAPTIVE_R
 /**
  * @brief Adapt the measurement-noise covariance R online from the most recent
- * innovation (innovation covariance matching).
+ * update (residual-based covariance matching).
  *
- *      R <- gamma * R + (1 - gamma) * (y y^T + H P H^T)
+ *      R <- gamma * R + (1 - gamma) * (r r^T + H P H^T)
  *
- * Called after an update. `gamma` in (0, 1) is the forgetting factor (closer
- * to 1 = slower adaptation); `r_min` is a floor applied to the diagonal to
- * keep R positive definite. The additive H P H^T term makes the estimator
- * conservative and well-conditioned.
+ * where r = z - H x^+ is the post-update residual and P = P^+ the post-update
+ * covariance. Because the residual has covariance R - H P H^T, the term
+ * (r r^T + H P H^T) is an unbiased estimate of R and is positive
+ * semi-definite by construction, so R stays well-conditioned.
+ *
+ * Call after an update. `gamma` in (0, 1) is the forgetting factor (closer to
+ * 1 = slower adaptation); `r_min` is a floor applied to the diagonal to keep R
+ * positive definite.
  */
 kf_status_t kf_kf_adapt_r(kf_kf_t *kf, kf_real_t gamma, kf_real_t r_min);
 #endif /* KF_ENABLE_ADAPTIVE_R */

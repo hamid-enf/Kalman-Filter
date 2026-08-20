@@ -43,6 +43,7 @@ TEST_SRC := \
     tests/test_ekf.c \
     tests/test_ukf.c \
     tests/test_extensions.c \
+    tests/test_reference.c \
     tests/main.c
 
 EXAMPLES := \

@@ -84,19 +84,21 @@ static void test_adaptive_r(void)
 {
     kf_kf_t kf;
     kf_real_t z;
+    kf_real_t scale = 2.0f;         /* sensor noise std = 2 -> variance 4/3 */
+    int i;
 
     t_begin("KF ext: adaptive measurement noise");
-    /* R starts small (0.01); the sensor is actually noisy (variance ~1). */
-    CHECK(kf_kf_init_1d(&kf, 1e-4f, 0.01f) == KF_OK);
+    /* R starts small (0.05); the sensor is actually noisy (variance 4/3). */
+    CHECK(kf_kf_init_1d(&kf, 1e-4f, 0.05f) == KF_OK);
 
-    /* Large innovation should drive R upward. */
-    kf_kf_predict(&kf, NULL, 1.0f);
-    z = 10.0f;                       /* far from x=0 -> big innovation */
-    CHECK(kf_kf_update(&kf, &z) == KF_OK);
-    CHECK(kf_kf_adapt_r(&kf, 0.9f, 0.01f) == KF_OK);
-
-    CHECK(kf_kf_get_measurement_noise(&kf)[0] > 0.01f);  /* R grew       */
-    CHECK(kf_kf_get_measurement_noise(&kf)[0] < 200.0f); /* but bounded  */
+    for (i = 0; i < 2000; i++) {
+        kf_kf_predict(&kf, NULL, 1.0f);
+        z = 10.0f + scale * noise_unit();   /* uniform noise, var 4/3 */
+        CHECK(kf_kf_update(&kf, &z) == KF_OK);
+        CHECK(kf_kf_adapt_r(&kf, 0.995f, 0.001f) == KF_OK);
+    }
+    /* R should converge toward the true variance (scale^2 / 3 = 4/3). */
+    CHECK_NEAR(kf_kf_get_measurement_noise(&kf)[0], scale * scale / 3.0f, 0.6f);
 
     /* r_min floor is enforced. */
     {
@@ -130,9 +132,9 @@ static void test_smoother(void)
     kf_real_t x_smooth[SMOOTH_N + 1];
     kf_real_t P_smooth[SMOOTH_N + 1];
     kf_real_t F[1] = {1.0f};
+    /* double-precision scalar reference (RTS recursion for the 1-D model). */
+    double xr[SMOOTH_N + 1], Pr[SMOOTH_N + 1];
     kf_real_t truth = 0.0f;
-    kf_real_t filt_err = 0.0f;
-    kf_real_t smooth_err = 0.0f;
     int k;
 
     t_begin("KF ext: RTS smoother");
@@ -153,12 +155,13 @@ static void test_smoother(void)
         kf_kf_update(&kf, &z);
         x_filt[k + 1] = kf_kf_get_state(&kf)[0];
         P_filt[k + 1] = kf_kf_get_covariance(&kf)[0];
-        filt_err += (x_filt[k + 1] - truth) * (x_filt[k + 1] - truth);
     }
 
     /* Backward pass: seed with the final filtered estimate. */
     x_smooth[SMOOTH_N] = x_filt[SMOOTH_N];
     P_smooth[SMOOTH_N] = P_filt[SMOOTH_N];
+    xr[SMOOTH_N] = (double)x_filt[SMOOTH_N];
+    Pr[SMOOTH_N] = (double)P_filt[SMOOTH_N];
     for (k = SMOOTH_N - 1; k >= 0; k--) {
         kf_status_t st = kf_kf_smooth_step(&kf,
                                            &x_filt[k], &P_filt[k], F,
@@ -166,19 +169,25 @@ static void test_smoother(void)
                                            &x_smooth[k + 1], &P_smooth[k + 1],
                                            &x_smooth[k], &P_smooth[k]);
         CHECK(st == KF_OK);
+
+        /* scalar RTS reference: C = P_k / P_{k+1|k},  (F = 1) */
+        {
+            double C = (double)P_filt[k] / (double)P_pred[k + 1];
+            xr[k] = (double)x_filt[k] + C * (xr[k + 1] - (double)x_pred[k + 1]);
+            Pr[k] = (double)P_filt[k] + C * C * (Pr[k + 1] - (double)P_pred[k + 1]);
+        }
     }
-    smooth_err = 0.0f;
+
+    /* The smoothed estimate must match the exact scalar reference. */
     for (k = 0; k <= SMOOTH_N; k++) {
-        smooth_err += (x_smooth[k] - truth) * (x_smooth[k] - truth);
+        CHECK_NEAR(x_smooth[k], xr[k], 1e-4);
+        CHECK_NEAR(P_smooth[k], Pr[k], 1e-4);
     }
 
     /* Smoothed covariance never exceeds filtered (smoothing reduces variance). */
     for (k = 0; k <= SMOOTH_N; k++) {
         CHECK(P_smooth[k] <= P_filt[k] + 1e-6f);
     }
-
-    /* Smoothed trajectory has lower total squared error than filtered. */
-    CHECK(smooth_err < filt_err);
 
     /* Error-handling: NULL inputs. */
 #if KF_ENABLE_RUNTIME_CHECKS

@@ -18,6 +18,8 @@ A CMake build registers the suite with CTest (`ctest`).
 | `tests/test_kf.c` | Linear KF behaviour and error handling |
 | `tests/test_ekf.c` | EKF nonlinear models and error handling |
 | `tests/test_ukf.c` | UKF nonlinear models, KF equivalence, error handling |
+| `tests/test_extensions.c` | Gating/NIS, adaptive R, RTS smoother |
+| `tests/test_reference.c` | Exact comparison against naive double-precision reference implementations |
 | `tests/main.c` | Runner |
 
 ## What is tested
@@ -57,6 +59,18 @@ A CMake build registers the suite with CTest (`ctest`).
   transform is exact for linear systems, the UKF must match the KF; this is a
   strong check of the sigma points, weights, and covariance reconstruction.
 - Error handling incl. invalid sigma-point parameters.
+
+**Extensions**
+- Gating: NIS thresholding rejects spikes and leaves the state unchanged.
+- Adaptive R: converges toward the true (simulated) sensor-noise variance.
+- RTS smoother: matches an exact scalar reference to float precision, and
+  `P_smooth <= P_filt` holds throughout.
+
+**Reference comparisons**
+- The linear KF (3-state / 2-measurement) is run in lock-step against a naive
+  double-precision implementation and must match to float precision.
+- The UKF's sigma-point machinery is verified to reproduce the covariance
+  `A P A^T` exactly for a linear map.
 
 ## Coverage philosophy
 

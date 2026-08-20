@@ -14,6 +14,7 @@ void test_kf(void);
 void test_ekf(void);
 void test_ukf(void);
 void test_extensions(void);
+void test_reference(void);
 
 int main(void)
 {
@@ -24,6 +25,7 @@ int main(void)
     test_ekf();
     test_ukf();
     test_extensions();
+    test_reference();
 
     printf("\n=== %s (%d total failures) ===\n",
            t_total() == 0 ? "ALL TESTS PASSED" : "TESTS FAILED", t_total());

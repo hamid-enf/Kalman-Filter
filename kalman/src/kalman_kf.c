@@ -616,6 +616,12 @@ static kf_status_t kf_kf_update_impl(kf_kf_t *kf, const kf_real_t *z, int gate)
     (void)kf_mat_vec_mul(&s[OFF_VEC_N], &Km, &s[OFF_VEC_M]);
     kf_vec_add(kf->x, kf->x, &s[OFF_VEC_N], n);
 
+#if KF_ENABLE_ADAPTIVE_R
+    /* Residual r = z - H x^+ (post-update); used by kf_kf_adapt_r(). */
+    (void)kf_mat_vec_mul(&s[OFF_VEC_M2], &Hm, kf->x);
+    kf_vec_sub(kf->resid, z, &s[OFF_VEC_M2], m);
+#endif
+
     /* Covariance update */
     kf_view(&Tm, &s[OFF_NN1], n, n);
     (void)kf_matrix_mul(&Tm, &Km, &Hm);          /* Tm = K H           */
@@ -705,7 +711,10 @@ kf_status_t kf_kf_adapt_r(kf_kf_t *kf, kf_real_t gamma, kf_real_t r_min)
     kf_view(&Pm, kf->P, n, n);
     kf_view(&Rm, kf->R, m, m);
 
-    /* Estimate the innovation covariance S_hat = H P H^T + y y^T. */
+    /* Residual-based covariance matching (guaranteed positive semi-definite):
+     * the residual r = z - H x^+ has covariance R - H P^+ H^T, therefore
+     *   R_hat = r r^T + H P^+ H^T
+     * is an unbiased estimate of R. */
     kf_view(&YYt, &s[OFF_MM], m, m);
     {
         kf_matrix_t HP;
@@ -718,12 +727,12 @@ kf_status_t kf_kf_adapt_r(kf_kf_t *kf, kf_real_t gamma, kf_real_t r_min)
         for (rr = 0u; rr < m; rr++) {
             uint16_t cc;
             for (cc = 0u; cc < m; cc++) {
-                YYt.data[(size_t)rr * m + cc] += kf->y[rr] * kf->y[cc];
+                YYt.data[(size_t)rr * m + cc] += kf->resid[rr] * kf->resid[cc];
             }
         }
     }
 
-    /* R = gamma * R + (1 - gamma) * (H P H^T + y y^T), with a diagonal floor. */
+    /* R = gamma * R + (1 - gamma) * (H P^+ H^T + r r^T), with a diagonal floor. */
     for (i = 0u; i < (uint16_t)(m * m); i++) {
         Rm.data[i] = (gamma * Rm.data[i]) + ((kf_real_t)1 - gamma) * YYt.data[i];
     }
@@ -823,7 +832,7 @@ kf_status_t kf_kf_smooth_step(kf_kf_t *kf,
     n = kf->n;
     ss = kf->smoother_scratch;
 
-    /* AT = A^T = F * P_filt  (P_filt is symmetric). */
+    /* A = F * P_k  (P_k is symmetric, so A = F P_k and A^T = P_k F^T). */
     kf_sm_mul(F, P_filt, &ss[SM_AT], n);
 
     /* Pc = cholesky(P_pred). */
@@ -836,7 +845,7 @@ kf_status_t kf_kf_smooth_step(kf_kf_t *kf,
         return st;
     }
 
-    /* AT = C^T = (P_pred)^-1 A^T. */
+    /* C^T = P_pred^-1 A = P_pred^-1 F P_k  (== (P_k F^T P_pred^-1)^T). */
     kf_view(&ATm, &ss[SM_AT], n, n);
     st = kf_matrix_cholesky_solve(&Pcm, &ATm);
     if (st != KF_OK) {

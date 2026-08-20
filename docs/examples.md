@@ -72,9 +72,9 @@ converging, `kf_kf_update_gated()` rejects the spikes (NIS above the 6.63
 chi-square gate) and the estimate stays locked on the true value.
 
 ## 12 — Adaptive R
-Starts with an over-optimistic `R = 0.01` while the sensor is really noisy
-(variance ~1). `kf_kf_adapt_r()` drives `R` toward the true noise level
-online, so no manual tuning is needed.
+Starts with an over-optimistic `R = 0.01` while the sensor really has unit
+variance. `kf_kf_adapt_r()` drives `R` toward the true noise level online
+(residual-based covariance matching), so no manual tuning is needed.
 
 ## 13 — RTS smoother
 Filters a random walk forward (storing `x`,`P`,`x_pred`,`P_pred`,`F`), then

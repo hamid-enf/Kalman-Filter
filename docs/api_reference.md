@@ -139,7 +139,8 @@ kf_status_t kf_kf_smooth_step(kf_kf_t *kf,
 - `kf_kf_update_gated` returns `KF_WARN_GATED` (positive) when a measurement is
   rejected as an outlier; the state is left unchanged in that case.
 - `kf_kf_nis` returns the normalized innovation squared of the last update.
-- `kf_kf_adapt_r` updates `R` in place from the last innovation;
+- `kf_kf_adapt_r` updates `R` in place from the post-update residual
+  (`R <- gamma*R + (1-gamma)*(r r^T + H P H^T)`);
   `kf_kf_get_measurement_noise()` returns the adapted `R`.
 - `kf_kf_smooth_step` performs one backward smoothing step; sweep it from the
   end of a stored forward trajectory toward the start (see example 13).
